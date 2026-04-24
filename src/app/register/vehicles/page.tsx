@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, PlusCircle } from "lucide-react";
+import { ArrowRight, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProgressStepper from "@/components/ProgressStepper";
 import DocumentUploadCard, {
@@ -11,6 +11,8 @@ import DocumentUploadCard, {
 import VehiclePhotoCapture, {
   type PhotoMetadata,
 } from "@/components/VehiclePhotoCapture";
+import VehiclePhotoAssessment from "@/components/VehiclePhotoAssessment";
+import { assessVehiclePhoto, type PhotoAssessment } from "@/lib/ai/document-parser";
 
 // ---- Constants ----
 
@@ -66,6 +68,12 @@ interface UploadState {
 interface VehiclePhoto {
   file: File;
   metadata: PhotoMetadata;
+  previewUrl: string;
+}
+
+interface PhotoAIState {
+  scanning: boolean;
+  assessment: PhotoAssessment | null;
 }
 
 interface VehicleForm {
@@ -84,6 +92,7 @@ interface VehicleForm {
     permit: UploadState;
   };
   photos: Partial<Record<string, VehiclePhoto>>;
+  photoAI: Partial<Record<string, PhotoAIState>>;
 }
 
 function makeEmptyVehicle(): VehicleForm {
@@ -103,6 +112,7 @@ function makeEmptyVehicle(): VehicleForm {
       permit: { status: "empty" },
     },
     photos: {},
+    photoAI: {},
   };
 }
 
@@ -141,6 +151,20 @@ function simulateUpload(
       });
     }
   }, 200);
+}
+
+function computeAverageScore(
+  photoAI: Partial<Record<string, PhotoAIState>>
+): number | null {
+  const scores = Object.values(photoAI)
+    .filter(
+      (ai): ai is PhotoAIState =>
+        ai != null && ai.assessment != null
+    )
+    .map((ai) => ai.assessment!.score);
+
+  if (scores.length === 0) return null;
+  return Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
 }
 
 // ---- Component ----
@@ -190,19 +214,61 @@ export default function VehiclesPage() {
     simulateUpload(file, (state) => updateDoc(vehicleIndex, docKey, state));
   }
 
-  function handlePhotoCapture(
-    vehicleIndex: number,
-    photoType: string,
-    file: File,
-    metadata: PhotoMetadata
-  ) {
+  const handlePhotoCapture = useCallback(
+    (
+      vehicleIndex: number,
+      photoType: string,
+      file: File,
+      metadata: PhotoMetadata
+    ) => {
+      const previewUrl = URL.createObjectURL(file);
+
+      // Save the photo
+      setVehicles((prev) =>
+        prev.map((v, i) => {
+          if (i !== vehicleIndex) return v;
+          return {
+            ...v,
+            photos: {
+              ...v.photos,
+              [photoType]: { file, metadata, previewUrl },
+            },
+            photoAI: {
+              ...v.photoAI,
+              [photoType]: { scanning: true, assessment: null },
+            },
+          };
+        })
+      );
+
+      // Run AI assessment
+      assessVehiclePhoto(previewUrl, photoType).then((assessment) => {
+        setVehicles((prev) =>
+          prev.map((v, i) => {
+            if (i !== vehicleIndex) return v;
+            return {
+              ...v,
+              photoAI: {
+                ...v.photoAI,
+                [photoType]: { scanning: false, assessment },
+              },
+            };
+          })
+        );
+      });
+    },
+    []
+  );
+
+  function handlePhotoRetake(vehicleIndex: number, photoType: string) {
     setVehicles((prev) =>
       prev.map((v, i) => {
         if (i !== vehicleIndex) return v;
-        return {
-          ...v,
-          photos: { ...v.photos, [photoType]: { file, metadata } },
-        };
+        const newPhotos = { ...v.photos };
+        delete newPhotos[photoType];
+        const newPhotoAI = { ...v.photoAI };
+        delete newPhotoAI[photoType];
+        return { ...v, photos: newPhotos, photoAI: newPhotoAI };
       })
     );
   }
@@ -217,6 +283,7 @@ export default function VehiclesPage() {
   }
 
   const vehicle = vehicles[activeIndex];
+  const avgScore = computeAverageScore(vehicle.photoAI);
 
   return (
     <div className="flex flex-col gap-6">
@@ -255,7 +322,10 @@ export default function VehiclesPage() {
         <div className="mt-6 flex flex-col gap-5">
           {/* Registration Number */}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="regNumber" className="text-sm font-medium text-foreground">
+            <label
+              htmlFor="regNumber"
+              className="text-sm font-medium text-foreground"
+            >
               Registration Number <span className="text-destructive">*</span>
             </label>
             <input
@@ -273,13 +343,18 @@ export default function VehiclesPage() {
 
           {/* Vehicle Type */}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="vehicleType" className="text-sm font-medium text-foreground">
+            <label
+              htmlFor="vehicleType"
+              className="text-sm font-medium text-foreground"
+            >
               Vehicle Type <span className="text-destructive">*</span>
             </label>
             <select
               id="vehicleType"
               value={vehicle.vehicleType}
-              onChange={(e) => handleVehicleTypeChange(activeIndex, e.target.value)}
+              onChange={(e) =>
+                handleVehicleTypeChange(activeIndex, e.target.value)
+              }
               className="rounded-xl border border-input bg-background px-4 py-4 text-base text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30 cursor-pointer"
             >
               <option value="">Select vehicle type</option>
@@ -294,13 +369,18 @@ export default function VehiclesPage() {
           {/* Make + Model row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="make" className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="make"
+                className="text-sm font-medium text-foreground"
+              >
                 Make <span className="text-destructive">*</span>
               </label>
               <select
                 id="make"
                 value={vehicle.make}
-                onChange={(e) => updateVehicle(activeIndex, { make: e.target.value })}
+                onChange={(e) =>
+                  updateVehicle(activeIndex, { make: e.target.value })
+                }
                 className="rounded-xl border border-input bg-background px-3 py-4 text-base text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30 cursor-pointer"
               >
                 <option value="">Select make</option>
@@ -313,7 +393,10 @@ export default function VehiclesPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="model" className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="model"
+                className="text-sm font-medium text-foreground"
+              >
                 Model <span className="text-destructive">*</span>
               </label>
               <input
@@ -321,7 +404,9 @@ export default function VehiclesPage() {
                 type="text"
                 placeholder="e.g. Innova"
                 value={vehicle.model}
-                onChange={(e) => updateVehicle(activeIndex, { model: e.target.value })}
+                onChange={(e) =>
+                  updateVehicle(activeIndex, { model: e.target.value })
+                }
                 className="rounded-xl border border-input bg-background px-3 py-4 text-base text-foreground placeholder:text-muted-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30"
               />
             </div>
@@ -330,13 +415,18 @@ export default function VehiclesPage() {
           {/* Year + Fuel row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="year" className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="year"
+                className="text-sm font-medium text-foreground"
+              >
                 Year <span className="text-destructive">*</span>
               </label>
               <select
                 id="year"
                 value={vehicle.year}
-                onChange={(e) => updateVehicle(activeIndex, { year: e.target.value })}
+                onChange={(e) =>
+                  updateVehicle(activeIndex, { year: e.target.value })
+                }
                 className="rounded-xl border border-input bg-background px-3 py-4 text-base text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30 cursor-pointer"
               >
                 <option value="">Year</option>
@@ -349,13 +439,18 @@ export default function VehiclesPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="fuelType" className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="fuelType"
+                className="text-sm font-medium text-foreground"
+              >
                 Fuel Type <span className="text-destructive">*</span>
               </label>
               <select
                 id="fuelType"
                 value={vehicle.fuelType}
-                onChange={(e) => updateVehicle(activeIndex, { fuelType: e.target.value })}
+                onChange={(e) =>
+                  updateVehicle(activeIndex, { fuelType: e.target.value })
+                }
                 className="rounded-xl border border-input bg-background px-3 py-4 text-base text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30 cursor-pointer"
               >
                 <option value="">Select fuel</option>
@@ -371,7 +466,9 @@ export default function VehiclesPage() {
           {/* Seating Capacity — auto-filled */}
           {vehicle.seatingCapacity && (
             <div className="rounded-xl border border-border bg-muted px-4 py-3 flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Seating Capacity:</span>
+              <span className="text-sm text-muted-foreground">
+                Seating Capacity:
+              </span>
               <span className="text-sm font-semibold text-foreground">
                 {vehicle.seatingCapacity} passengers
               </span>
@@ -404,7 +501,9 @@ export default function VehiclesPage() {
               previewUrl={vehicle.docs.insurance.previewUrl}
               fileName={vehicle.docs.insurance.fileName}
               fileSize={vehicle.docs.insurance.fileSize}
-              onUpload={(file) => handleDocUpload(activeIndex, "insurance", file)}
+              onUpload={(file) =>
+                handleDocUpload(activeIndex, "insurance", file)
+              }
             />
 
             <DocumentUploadCard
@@ -415,7 +514,9 @@ export default function VehiclesPage() {
               previewUrl={vehicle.docs.fitness.previewUrl}
               fileName={vehicle.docs.fitness.fileName}
               fileSize={vehicle.docs.fitness.fileSize}
-              onUpload={(file) => handleDocUpload(activeIndex, "fitness", file)}
+              onUpload={(file) =>
+                handleDocUpload(activeIndex, "fitness", file)
+              }
             />
 
             <DocumentUploadCard
@@ -438,7 +539,9 @@ export default function VehiclesPage() {
               previewUrl={vehicle.docs.permit.previewUrl}
               fileName={vehicle.docs.permit.fileName}
               fileSize={vehicle.docs.permit.fileSize}
-              onUpload={(file) => handleDocUpload(activeIndex, "permit", file)}
+              onUpload={(file) =>
+                handleDocUpload(activeIndex, "permit", file)
+              }
             />
           </div>
 
@@ -449,22 +552,97 @@ export default function VehiclesPage() {
                 Vehicle Photos
               </h2>
               <p className="text-sm text-muted-foreground">
-                Take photos from the required angles. Timestamp is added automatically.
+                Take photos from the required angles. Timestamp is added
+                automatically.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-              {PHOTO_SLOTS.map((slot) => (
-                <VehiclePhotoCapture
-                  key={slot.type}
-                  photoType={slot.type}
-                  label={slot.label}
-                  onCapture={(file, metadata) =>
-                    handlePhotoCapture(activeIndex, slot.type, file, metadata)
-                  }
-                />
-              ))}
+              {PHOTO_SLOTS.map((slot) => {
+                const photo = vehicle.photos[slot.type];
+                const ai = vehicle.photoAI[slot.type];
+
+                return (
+                  <div key={slot.type} className="flex flex-col gap-2">
+                    {/* Show the capture component if no photo yet, or if user needs to retake */}
+                    {!photo ? (
+                      <VehiclePhotoCapture
+                        photoType={slot.type}
+                        label={slot.label}
+                        onCapture={(file, metadata) =>
+                          handlePhotoCapture(
+                            activeIndex,
+                            slot.type,
+                            file,
+                            metadata
+                          )
+                        }
+                      />
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        <p className="text-sm font-medium text-foreground">
+                          {slot.label}
+                        </p>
+
+                        {/* Scanning state */}
+                        {ai?.scanning && (
+                          <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-[#EDEDFB] px-3 py-3">
+                            <Loader2 className="size-4 animate-spin text-primary" />
+                            <span className="text-xs font-medium text-primary">
+                              Analyzing photo...
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Assessment result */}
+                        {ai?.assessment && (
+                          <VehiclePhotoAssessment
+                            photoUrl={photo.previewUrl}
+                            photoType={slot.type}
+                            assessment={ai.assessment}
+                            onRetake={() =>
+                              handlePhotoRetake(activeIndex, slot.type)
+                            }
+                          />
+                        )}
+
+                        {/* Photo taken but AI hasn't run yet — show thumbnail */}
+                        {!ai && (
+                          <div className="relative overflow-hidden rounded-xl border border-border">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={photo.previewUrl}
+                              alt={slot.label}
+                              className="h-36 w-full object-cover"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+
+            {/* Overall vehicle condition score */}
+            {avgScore !== null && (
+              <div className="rounded-xl border border-border bg-muted px-4 py-3 flex items-center justify-between">
+                <span className="text-sm font-medium text-foreground">
+                  Overall Vehicle Condition Score
+                </span>
+                <span
+                  className={`text-lg font-bold ${
+                    avgScore >= 8
+                      ? "text-green-700"
+                      : avgScore >= 6
+                        ? "text-amber-700"
+                        : "text-red-700"
+                  }`}
+                >
+                  {avgScore}/10
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
