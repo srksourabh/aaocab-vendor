@@ -1,65 +1,122 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Banknote, CalendarCheck, Wallet } from "lucide-react";
+import VendorHeader from "@/components/VendorHeader";
+import { Button } from "@/components/ui/button";
 
-export default function Home() {
+const BENEFITS = [
+  {
+    icon: Wallet,
+    title: "Zero Investment",
+    description: "No joining fees, no deposits. Start earning from day one.",
+  },
+  {
+    icon: CalendarCheck,
+    title: "Regular Bookings",
+    description: "Consistent trip flow from corporate and leisure travellers.",
+  },
+  {
+    icon: Banknote,
+    title: "Timely Payments",
+    description: "Guaranteed 7-day payment cycles. No delays, no hassle.",
+  },
+];
+
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="min-h-screen bg-muted flex flex-col">
+      <VendorHeader />
+
+      <main className="flex-1">
+        {/* Hero section */}
+        <section className="bg-white border-b border-border">
+          <div className="mx-auto max-w-4xl px-4 py-16 sm:py-24 text-center">
+            <div className="inline-block rounded-full bg-[#EDEDFB] px-4 py-1.5 mb-4">
+              <span className="text-sm font-semibold text-primary">
+                Vendor Partner Program
+              </span>
+            </div>
+
+            <h1 className="font-heading text-3xl font-bold text-foreground sm:text-5xl leading-tight">
+              Join India&apos;s Fastest-Growing
+              <br />
+              <span style={{ color: "#4F4ED6" }}>Car Rental Network</span>
+            </h1>
+
+            <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
+              Register your fleet with AaoCab and start earning today. Trusted
+              by hundreds of vendors across India.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center sm:gap-4">
+              <Link href="/register">
+                <Button className="h-14 w-full sm:w-auto rounded-[40px] bg-primary px-8 text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer">
+                  Register Now
+                  <ArrowRight className="ml-2 size-5" />
+                </Button>
+              </Link>
+            </div>
+
+            <p className="mt-4 text-sm text-muted-foreground">
+              Already a partner?{" "}
+              <Link
+                href="/login"
+                className="font-medium text-primary underline-offset-4 hover:underline cursor-pointer"
+              >
+                Login here
+              </Link>
+            </p>
+          </div>
+        </section>
+
+        {/* Benefits section */}
+        <section className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
+          <h2 className="font-heading text-xl font-semibold text-foreground text-center mb-8">
+            Why partner with AaoCab?
+          </h2>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {BENEFITS.map((benefit) => {
+              const Icon = benefit.icon;
+              return (
+                <div
+                  key={benefit.title}
+                  className="rounded-2xl bg-white border border-border p-6 flex flex-col gap-3"
+                >
+                  <div className="flex size-12 items-center justify-center rounded-xl bg-[#EDEDFB] text-primary">
+                    <Icon className="size-6" />
+                  </div>
+                  <h3 className="font-heading text-base font-semibold text-foreground">
+                    {benefit.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {benefit.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bottom CTA */}
+          <div className="mt-10 text-center">
+            <Link href="/register">
+              <Button className="h-12 rounded-[40px] bg-primary px-8 text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer">
+                Get Started — It&apos;s Free
+                <ArrowRight className="ml-2 size-5" />
+              </Button>
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      {/* Minimal footer */}
+      <footer className="border-t border-border bg-white py-6">
+        <div className="mx-auto max-w-4xl px-4 flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between">
+          <span className="font-heading font-bold text-primary">AaoCab</span>
+          <p className="text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} AaoCab. All rights reserved.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </footer>
     </div>
   );
 }
