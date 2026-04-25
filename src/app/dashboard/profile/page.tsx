@@ -15,15 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MOCK_VENDOR } from "@/lib/mock-data";
-
-const ONBOARDING_TIMELINE = [
-  { key: "phone_verified", label: "Phone Verified", done: true },
-  { key: "profile_completed", label: "Business Profile Submitted", done: true },
-  { key: "documents_uploaded", label: "Documents Uploaded", done: true },
-  { key: "vehicles_added", label: "Vehicles Added", done: true },
-  { key: "under_review", label: "Under Review", done: true },
-  { key: "active", label: "Account Activated", done: MOCK_VENDOR.onboarding_status === "active" },
-];
+import { useLanguage } from "@/lib/i18n/context";
 
 // Masked bank details for demo
 const DEMO_BANK = {
@@ -55,27 +47,41 @@ function InfoRow({
 }
 
 export default function ProfilePage() {
+  const { t } = useLanguage();
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingBank, setEditingBank] = useState(false);
 
+  const ONBOARDING_TIMELINE = [
+    { key: "phone_verified", label: t("phoneVerified"), done: true },
+    { key: "profile_completed", label: t("profileCompleted"), done: true },
+    { key: "documents_uploaded", label: t("documentsUploaded"), done: true },
+    { key: "vehicles_added", label: t("vehiclesAdded"), done: true },
+    { key: "under_review", label: t("underReviewStep"), done: true },
+    {
+      key: "active",
+      label: t("accountActivatedStep"),
+      done: MOCK_VENDOR.onboarding_status === "active",
+    },
+  ];
+
   const statusLabel =
     MOCK_VENDOR.onboarding_status === "active"
-      ? "Active"
+      ? t("active")
       : MOCK_VENDOR.onboarding_status === "under_review"
-      ? "Under Review"
+      ? t("underReview")
       : MOCK_VENDOR.onboarding_status;
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
       <h1 className="font-heading text-xl font-bold text-foreground">
-        Profile
+        {t("profile")}
       </h1>
 
       {/* Business profile card */}
       <div className="rounded-2xl bg-white border border-border p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-heading text-base font-semibold text-foreground">
-            Business Profile
+            {t("businessProfile")}
           </h2>
           <Button
             variant="outline"
@@ -84,7 +90,7 @@ export default function ProfilePage() {
             className="flex items-center gap-1.5 cursor-pointer transition-all duration-200"
           >
             <Edit className="size-3.5" />
-            {editingProfile ? "Cancel" : "Edit Profile"}
+            {editingProfile ? t("cancel") : t("editProfile")}
           </Button>
         </div>
 
@@ -92,7 +98,7 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground">
-                Business Name
+                {t("businessName")}
               </label>
               <input
                 type="text"
@@ -102,7 +108,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground">
-                Owner Name
+                {t("ownerName")}
               </label>
               <input
                 type="text"
@@ -112,7 +118,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground">
-                City
+                {t("city")}
               </label>
               <input
                 type="text"
@@ -125,31 +131,31 @@ export default function ProfilePage() {
               className="bg-primary text-primary-foreground hover:bg-[#3D3CB8] transition-all duration-200 cursor-pointer"
               size="sm"
             >
-              Save Changes
+              {t("saveChanges")}
             </Button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
             <InfoRow
               icon={Building2}
-              label="Business Name"
+              label={t("businessName")}
               value={MOCK_VENDOR.business_name}
             />
             <InfoRow
               icon={User}
-              label="Owner Name"
+              label={t("ownerName")}
               value={MOCK_VENDOR.owner_name}
             />
             <InfoRow
               icon={Phone}
-              label="Mobile Number"
+              label={t("mobileNumberLabel")}
               value={`+91 ${MOCK_VENDOR.phone}`}
             />
-            <InfoRow icon={MapPin} label="City" value={MOCK_VENDOR.city} />
+            <InfoRow icon={MapPin} label={t("city")} value={MOCK_VENDOR.city} />
             <InfoRow
               icon={Car}
-              label="Self-Driver"
-              value={MOCK_VENDOR.is_self_driver ? "Yes" : "No"}
+              label={t("selfDriverLabel")}
+              value={MOCK_VENDOR.is_self_driver ? t("yes") : t("no")}
             />
           </div>
         )}
@@ -159,7 +165,7 @@ export default function ProfilePage() {
       <div className="rounded-2xl bg-white border border-border p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-heading text-base font-semibold text-foreground">
-            Bank Details
+            {t("bankDetails")}
           </h2>
           <Button
             variant="outline"
@@ -168,7 +174,7 @@ export default function ProfilePage() {
             className="flex items-center gap-1.5 cursor-pointer transition-all duration-200"
           >
             <Edit className="size-3.5" />
-            {editingBank ? "Cancel" : "Update"}
+            {editingBank ? t("cancel") : t("update")}
           </Button>
         </div>
 
@@ -176,17 +182,17 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground">
-                Account Number
+                {t("accountNumber")}
               </label>
               <input
                 type="text"
-                placeholder="Enter account number"
+                placeholder={t("enterAccountNumber")}
                 className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/30 transition-all duration-200"
               />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground">
-                IFSC Code
+                {t("ifscCode")}
               </label>
               <input
                 type="text"
@@ -196,7 +202,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground">
-                Account Holder Name
+                {t("accountHolder")}
               </label>
               <input
                 type="text"
@@ -209,24 +215,24 @@ export default function ProfilePage() {
               className="bg-primary text-primary-foreground hover:bg-[#3D3CB8] transition-all duration-200 cursor-pointer"
               size="sm"
             >
-              Save Bank Details
+              {t("saveBankDetails")}
             </Button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
             <InfoRow
               icon={CreditCard}
-              label="Account Number"
+              label={t("accountNumber")}
               value={DEMO_BANK.account_number}
             />
             <InfoRow
               icon={FileText}
-              label="IFSC Code"
+              label={t("ifscCode")}
               value={DEMO_BANK.ifsc}
             />
             <InfoRow
               icon={User}
-              label="Account Holder"
+              label={t("accountHolder")}
               value={DEMO_BANK.holder_name}
             />
           </div>
@@ -236,7 +242,7 @@ export default function ProfilePage() {
       {/* Agreement & status card */}
       <div className="rounded-2xl bg-white border border-border p-6">
         <h2 className="font-heading text-base font-semibold text-foreground mb-5">
-          Account Status
+          {t("accountStatus")}
         </h2>
 
         <div className="flex items-center gap-3 mb-5">
@@ -259,8 +265,8 @@ export default function ProfilePage() {
             </p>
             <p className="text-xs text-muted-foreground">
               {MOCK_VENDOR.onboarding_status === "active"
-                ? "Your account is active and accepting bookings."
-                : "Your application is being reviewed."}
+                ? t("accountActivated")
+                : t("applicationUnderReview")}
             </p>
           </div>
         </div>

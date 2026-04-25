@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import ProgressStepper from "@/components/ProgressStepper";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n/context";
 
 // ---- Mock data — in production read from global state / context ----
 
@@ -84,11 +85,13 @@ function SectionCard({
   icon,
   title,
   editHref,
+  editLabel,
   children,
 }: {
   icon: React.ReactNode;
   title: string;
   editHref: string;
+  editLabel: string;
   children: React.ReactNode;
 }) {
   return (
@@ -105,7 +108,7 @@ function SectionCard({
           className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:border-primary hover:text-primary cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
         >
           <Pencil className="size-3" />
-          Edit
+          {editLabel}
         </Link>
       </div>
       {children}
@@ -115,14 +118,22 @@ function SectionCard({
 
 function VerificationBadge({
   status,
+  pendingLabel,
+  aiVerifiedLabel,
+  needsReviewLabel,
+  rejectedLabel,
 }: {
   status?: "passed" | "flagged" | "rejected" | "pending";
+  pendingLabel: string;
+  aiVerifiedLabel: string;
+  needsReviewLabel: string;
+  rejectedLabel: string;
 }) {
   if (!status || status === "pending") {
     return (
       <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
         <AlertCircle className="size-3.5" />
-        Pending
+        {pendingLabel}
       </span>
     );
   }
@@ -130,7 +141,7 @@ function VerificationBadge({
     return (
       <span className="flex items-center gap-1 text-xs font-medium text-green-700">
         <ShieldCheck className="size-3.5" />
-        AI Verified
+        {aiVerifiedLabel}
       </span>
     );
   }
@@ -138,52 +149,25 @@ function VerificationBadge({
     return (
       <span className="flex items-center gap-1 text-xs font-medium text-amber-600">
         <ShieldAlert className="size-3.5" />
-        Needs Review
+        {needsReviewLabel}
       </span>
     );
   }
   return (
     <span className="flex items-center gap-1 text-xs font-medium text-red-600">
       <ShieldX className="size-3.5" />
-      Rejected
+      {rejectedLabel}
     </span>
-  );
-}
-
-function DocStatusRow({ label, uploaded, verificationStatus }: DocItem) {
-  return (
-    <div className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
-      <span className="text-sm text-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        {uploaded ? (
-          <span className="flex items-center gap-1 text-xs font-medium text-green-700">
-            <CheckCircle className="size-3.5" />
-            Uploaded
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-xs font-medium text-amber-600">
-            <AlertCircle className="size-3.5" />
-            Pending
-          </span>
-        )}
-        {uploaded && verificationStatus && (
-          <>
-            <span className="text-border">|</span>
-            <VerificationBadge status={verificationStatus} />
-          </>
-        )}
-      </div>
-    </div>
   );
 }
 
 // ---- Main component ----
 
 export default function ReviewPage() {
+  const { t } = useLanguage();
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Check for any rejected documents
   const hasRejected = MOCK_DOCS.some(
     (d) => d.verificationStatus === "rejected"
   );
@@ -213,22 +197,21 @@ export default function ReviewPage() {
           </div>
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">
-              Application Submitted!
+              {t("applicationSubmitted")}
             </h1>
             <p className="mt-2 text-base text-muted-foreground max-w-sm">
-              Your vendor application is under review. We will contact you
-              within 2-3 business days.
+              {t("applicationSubmittedDesc")}
             </p>
           </div>
           <div className="rounded-xl border border-border bg-muted px-6 py-4 text-sm text-muted-foreground text-left w-full max-w-sm">
             <p className="font-medium text-foreground mb-1">
-              What happens next?
+              {t("whatHappensNext")}
             </p>
             <ol className="list-decimal list-inside space-y-1">
-              <li>AaoCab team reviews your documents</li>
-              <li>Background verification is done</li>
-              <li>You receive onboarding call</li>
-              <li>Account is activated</li>
+              <li>{t("step1Review")}</li>
+              <li>{t("step2Background")}</li>
+              <li>{t("step3Call")}</li>
+              <li>{t("step4Activated")}</li>
             </ol>
           </div>
         </div>
@@ -243,10 +226,10 @@ export default function ReviewPage() {
       <div className="flex flex-col gap-4">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-foreground sm:text-3xl">
-            Review &amp; Submit
+            {t("reviewAndSubmit")}
           </h1>
           <p className="mt-1 text-base text-muted-foreground">
-            Review your details before submitting for verification.
+            {t("reviewSubtitle")}
           </p>
         </div>
 
@@ -256,11 +239,10 @@ export default function ReviewPage() {
             <ShieldX className="mt-0.5 size-5 shrink-0 text-red-600" />
             <div>
               <p className="text-sm font-semibold text-red-800">
-                Some documents have been rejected
+                {t("someDocsRejected")}
               </p>
               <p className="text-xs text-red-700 mt-0.5">
-                Please go back and re-upload the rejected documents before
-                submitting your application.
+                {t("someDocsRejectedDesc")}
               </p>
             </div>
           </div>
@@ -270,11 +252,10 @@ export default function ReviewPage() {
             <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
             <div>
               <p className="text-sm font-semibold text-amber-800">
-                Some documents need attention
+                {t("someDocsFlagged")}
               </p>
               <p className="text-xs text-amber-700 mt-0.5">
-                You can still submit, but flagged documents may require
-                additional review and delay your approval.
+                {t("someDocsFlaggedDesc")}
               </p>
             </div>
           </div>
@@ -283,36 +264,37 @@ export default function ReviewPage() {
         {/* Vendor Profile */}
         <SectionCard
           icon={<User className="size-5" />}
-          title="Vendor Profile"
+          title={t("vendorProfile")}
           editHref="/register/profile"
+          editLabel={t("editLabel")}
         >
           <div className="flex flex-col gap-1">
             <div className="flex justify-between text-sm py-1 border-b border-border">
-              <span className="text-muted-foreground">Business Name</span>
+              <span className="text-muted-foreground">{t("businessName")}</span>
               <span className="font-medium text-foreground">
                 {MOCK_PROFILE.businessName}
               </span>
             </div>
             <div className="flex justify-between text-sm py-1 border-b border-border">
-              <span className="text-muted-foreground">Owner Name</span>
+              <span className="text-muted-foreground">{t("ownerName")}</span>
               <span className="font-medium text-foreground">
                 {MOCK_PROFILE.ownerName}
               </span>
             </div>
             <div className="flex justify-between text-sm py-1 border-b border-border">
-              <span className="text-muted-foreground">City</span>
+              <span className="text-muted-foreground">{t("city")}</span>
               <span className="font-medium text-foreground">
                 {MOCK_PROFILE.city}
               </span>
             </div>
             <div className="flex justify-between text-sm py-1 border-b border-border">
-              <span className="text-muted-foreground">Role</span>
+              <span className="text-muted-foreground">{t("role")}</span>
               <span className="font-medium text-foreground">
-                {MOCK_PROFILE.isSelfDriver ? "Self Driver" : "Fleet Owner"}
+                {MOCK_PROFILE.isSelfDriver ? t("selfDriver") : t("fleetOwner")}
               </span>
             </div>
             <div className="flex justify-between text-sm py-1">
-              <span className="text-muted-foreground">Fleet Size</span>
+              <span className="text-muted-foreground">{t("fleetSize")}</span>
               <span className="font-medium text-foreground">
                 {MOCK_PROFILE.fleetSize}
               </span>
@@ -323,12 +305,43 @@ export default function ReviewPage() {
         {/* Documents */}
         <SectionCard
           icon={<FileText className="size-5" />}
-          title="Business Documents"
+          title={t("businessDocuments")}
           editHref="/register/documents"
+          editLabel={t("editLabel")}
         >
           <div className="flex flex-col">
             {MOCK_DOCS.map((doc) => (
-              <DocStatusRow key={doc.label} {...doc} />
+              <div
+                key={doc.label}
+                className="flex items-center justify-between py-1.5 border-b border-border last:border-0"
+              >
+                <span className="text-sm text-foreground">{doc.label}</span>
+                <div className="flex items-center gap-2">
+                  {doc.uploaded ? (
+                    <span className="flex items-center gap-1 text-xs font-medium text-green-700">
+                      <CheckCircle className="size-3.5" />
+                      {t("uploaded")}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs font-medium text-amber-600">
+                      <AlertCircle className="size-3.5" />
+                      {t("pending")}
+                    </span>
+                  )}
+                  {doc.uploaded && doc.verificationStatus && (
+                    <>
+                      <span className="text-border">|</span>
+                      <VerificationBadge
+                        status={doc.verificationStatus}
+                        pendingLabel={t("pending")}
+                        aiVerifiedLabel={t("aiVerified")}
+                        needsReviewLabel={t("needsReview")}
+                        rejectedLabel={t("rejected")}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </SectionCard>
@@ -336,8 +349,9 @@ export default function ReviewPage() {
         {/* Vehicles */}
         <SectionCard
           icon={<Car className="size-5" />}
-          title="Vehicles"
+          title={t("vehicles")}
           editHref="/register/vehicles"
+          editLabel={t("editLabel")}
         >
           <div className="flex flex-col gap-3">
             {MOCK_VEHICLES.map((v) => (
@@ -365,7 +379,7 @@ export default function ReviewPage() {
                     ) : (
                       <AlertCircle className="size-3.5" />
                     )}
-                    {v.docCount}/{v.totalDocs} docs
+                    {v.docCount}/{v.totalDocs} {t("docs")}
                   </div>
                   {v.conditionScore !== null && (
                     <span
@@ -378,7 +392,7 @@ export default function ReviewPage() {
                             : "text-red-600"
                       )}
                     >
-                      Condition: {v.conditionScore}/10
+                      {t("condition")}: {v.conditionScore}/10
                     </span>
                   )}
                 </div>
@@ -391,8 +405,9 @@ export default function ReviewPage() {
         {!MOCK_PROFILE.isSelfDriver && MOCK_DRIVERS.length > 0 && (
           <SectionCard
             icon={<Users className="size-5" />}
-            title="Drivers"
+            title={t("drivers")}
             editHref="/register/drivers"
+            editLabel={t("editLabel")}
           >
             <div className="flex flex-col gap-3">
               {MOCK_DRIVERS.map((d) => (
@@ -416,7 +431,7 @@ export default function ReviewPage() {
                     ) : (
                       <AlertCircle className="size-3.5" />
                     )}
-                    {d.docCount}/{d.totalDocs} docs
+                    {d.docCount}/{d.totalDocs} {t("docs")}
                   </div>
                 </div>
               ))}
@@ -427,12 +442,12 @@ export default function ReviewPage() {
         {/* Submit */}
         <div className="rounded-2xl bg-white p-6 shadow-sm flex flex-col gap-4">
           <p className="text-sm text-muted-foreground text-center">
-            By submitting, you agree to the{" "}
+            {t("bySubmitting")}{" "}
             <Link
               href="/agreement"
               className="text-primary underline-offset-4 hover:underline cursor-pointer"
             >
-              AaoCab Vendor Empanelment Agreement
+              {t("vendorAgreement")}
             </Link>
             .
           </p>
@@ -442,17 +457,17 @@ export default function ReviewPage() {
             className="h-14 w-full rounded-[40px] bg-primary text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? (
-              "Submitting..."
+              t("submitting")
             ) : (
               <>
                 <Send className="mr-2 size-5" />
-                Submit for Verification
+                {t("submitForVerification")}
               </>
             )}
           </Button>
           {hasRejected && (
             <p className="text-xs text-center text-red-600">
-              Cannot submit while documents are rejected. Please fix them first.
+              {t("cannotSubmitRejected")}
             </p>
           )}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -15,7 +15,12 @@ import ProgressStepper from "@/components/ProgressStepper";
 import DocumentUploadCard, {
   type DocumentStatus,
 } from "@/components/DocumentUploadCard";
-import DocumentVerificationCard from "@/components/DocumentVerificationCard";
+import dynamic from "next/dynamic";
+
+const DocumentVerificationCard = dynamic(
+  () => import("@/components/DocumentVerificationCard"),
+  { ssr: false }
+);
 import { cn } from "@/lib/utils";
 import {
   parseDocument,
@@ -24,6 +29,8 @@ import {
   type VerificationResult,
 } from "@/lib/ai/document-parser";
 import { namesMatch } from "@/lib/ai/levenshtein";
+import { useLanguage } from "@/lib/i18n/context";
+import { saveFormProgress, loadFormProgress } from "@/lib/offline-storage";
 
 // ---- Types ----
 
@@ -58,6 +65,8 @@ function makeEmptyAI(): AIState {
   return { scanning: false, extractedData: null, verification: null, confirmed: false };
 }
 
+const STEP_KEY = "register_documents";
+
 // ---- Cross-verification summary ----
 
 interface CrossCheckItem {
@@ -68,23 +77,25 @@ interface CrossCheckItem {
 
 function buildCrossChecks(
   panAI: AIState,
-  aadhaarAI: AIState
+  aadhaarAI: AIState,
+  labelText: string,
+  bothSayText: string,
+  panSaysText: string,
+  aadhaarSaysText: string
 ): CrossCheckItem[] {
   const items: CrossCheckItem[] = [];
 
-  const panName =
-    panAI.extractedData?.fields.name ?? null;
-  const aadhaarName =
-    aadhaarAI.extractedData?.fields.name ?? null;
+  const panName = panAI.extractedData?.fields.name ?? null;
+  const aadhaarName = aadhaarAI.extractedData?.fields.name ?? null;
 
   if (panName && aadhaarName) {
     const match = namesMatch(panName, aadhaarName);
     items.push({
-      label: "Name on PAN matches Aadhaar",
+      label: labelText,
       passed: match,
       detail: match
-        ? `Both say "${panName}"`
-        : `PAN says "${panName}", Aadhaar says "${aadhaarName}"`,
+        ? `${bothSayText} "${panName}"`
+        : `${panSaysText} "${panName}", ${aadhaarSaysText} "${aadhaarName}"`,
     });
   }
 
@@ -95,6 +106,7 @@ function buildCrossChecks(
 
 export default function DocumentsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [hasGst, setHasGst] = useState(false);
 
   // Upload states
@@ -114,6 +126,27 @@ export default function DocumentsPage() {
     bankName: "",
   });
   const [bankErrors, setBankErrors] = useState<Partial<BankDetails>>({});
+
+  // Restore saved bank form data on mount
+  useEffect(() => {
+    const saved = loadFormProgress(STEP_KEY);
+    if (saved) {
+      setBank({
+        accountHolder: typeof saved.accountHolder === "string" ? saved.accountHolder : "",
+        accountNumber: typeof saved.accountNumber === "string" ? saved.accountNumber : "",
+        ifscCode: typeof saved.ifscCode === "string" ? saved.ifscCode : "",
+        bankName: typeof saved.bankName === "string" ? saved.bankName : "",
+      });
+      if (saved.hasGst === true) setHasGst(true);
+    }
+  }, []);
+
+  function saveBank(updated: BankDetails) {
+    saveFormProgress(STEP_KEY, {
+      ...updated,
+      hasGst,
+    } as unknown as Record<string, unknown>);
+  }
 
   // ---- Upload + AI scan ----
 
@@ -176,7 +209,6 @@ export default function DocumentsPage() {
     const result = await verifyDocument(ai.extractedData, crossRef);
     aiSetter((prev) => ({ ...prev, verification: result, confirmed: true }));
 
-    // Update document card status
     if (result.status === "passed") {
       uploadSetter((prev) => ({ ...prev, status: "verified" as DocumentStatus }));
     } else if (result.status === "rejected") {
@@ -194,7 +226,7 @@ export default function DocumentsPage() {
     const updatedData: ExtractedDocumentData = {
       documentType: docType,
       fields: correctedFields,
-      confidence: 1.0, // User-corrected = full confidence
+      confidence: 1.0,
       rawText: "",
     };
 
@@ -219,11 +251,11 @@ export default function DocumentsPage() {
 
   function validateBank(): boolean {
     const errs: Partial<BankDetails> = {};
-    if (!bank.accountHolder.trim()) errs.accountHolder = "Required";
-    if (!bank.accountNumber.trim()) errs.accountNumber = "Required";
+    if (!bank.accountHolder.trim()) errs.accountHolder = t("required");
+    if (!bank.accountNumber.trim()) errs.accountNumber = t("required");
     if (!/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(bank.ifscCode.trim()))
-      errs.ifscCode = "Enter a valid IFSC code (e.g. SBIN0001234)";
-    if (!bank.bankName.trim()) errs.bankName = "Required";
+      errs.ifscCode = t("invalidIfsc");
+    if (!bank.bankName.trim()) errs.bankName = t("required");
     setBankErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -255,7 +287,14 @@ export default function DocumentsPage() {
   }
 
   // Cross-verification items
-  const crossChecks = buildCrossChecks(panAI, aadhaarAI);
+  const crossChecks = buildCrossChecks(
+    panAI,
+    aadhaarAI,
+    t("nameOnPanMatchesAadhaar"),
+    t("bothSay"),
+    t("panSays"),
+    t("aadhaarSays")
+  );
 
   // Overall doc status
   const allVerified =
@@ -273,17 +312,17 @@ export default function DocumentsPage() {
 
       <div className="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
         <h1 className="font-heading text-2xl font-semibold text-foreground sm:text-3xl">
-          Upload Your Business Documents
+          {t("documentsPageTitle")}
         </h1>
         <p className="mt-1 text-base text-muted-foreground">
-          All documents are securely stored. Max file size: 5MB each.
+          {t("documentsPageSubtitle")}
         </p>
 
         <div className="mt-6 flex flex-col gap-6">
           {/* PAN Card */}
           <DocumentUploadCard
-            title="PAN Card"
-            description="Upload a clear image or scan of your PAN card."
+            title={t("panCard")}
+            description={t("panCardDesc")}
             required
             status={pan.status}
             uploadProgress={pan.uploadProgress}
@@ -300,7 +339,7 @@ export default function DocumentsPage() {
             <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-[#EDEDFB] px-4 py-3">
               <Loader2 className="size-5 animate-spin text-primary" />
               <span className="text-sm font-medium text-primary">
-                Scanning your PAN card...
+                {t("scanningPan")}
               </span>
             </div>
           )}
@@ -315,13 +354,11 @@ export default function DocumentsPage() {
                 }
               }
               onConfirm={() => {
-                const crossRefName =
-                  aadhaarAI.extractedData?.fields.name;
+                const crossRefName = aadhaarAI.extractedData?.fields.name;
                 handleConfirm(panAI, setPanAI, setPan, crossRefName);
               }}
               onCorrect={(fields) => {
-                const crossRefName =
-                  aadhaarAI.extractedData?.fields.name;
+                const crossRefName = aadhaarAI.extractedData?.fields.name;
                 handleCorrect(fields, "pan", setPanAI, setPan, crossRefName);
               }}
             />
@@ -329,8 +366,8 @@ export default function DocumentsPage() {
 
           {/* Aadhaar Card */}
           <DocumentUploadCard
-            title="Aadhaar Card"
-            description="Upload front and back of your Aadhaar card as a single file."
+            title={t("aadhaarCard")}
+            description={t("aadhaarCardDesc")}
             required
             status={aadhaar.status}
             uploadProgress={aadhaar.uploadProgress}
@@ -347,7 +384,7 @@ export default function DocumentsPage() {
             <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-[#EDEDFB] px-4 py-3">
               <Loader2 className="size-5 animate-spin text-primary" />
               <span className="text-sm font-medium text-primary">
-                Scanning your Aadhaar card...
+                {t("scanningAadhaar")}
               </span>
             </div>
           )}
@@ -362,13 +399,11 @@ export default function DocumentsPage() {
                 }
               }
               onConfirm={() => {
-                const crossRefName =
-                  panAI.extractedData?.fields.name;
+                const crossRefName = panAI.extractedData?.fields.name;
                 handleConfirm(aadhaarAI, setAadhaarAI, setAadhaar, crossRefName);
               }}
               onCorrect={(fields) => {
-                const crossRefName =
-                  panAI.extractedData?.fields.name;
+                const crossRefName = panAI.extractedData?.fields.name;
                 handleCorrect(
                   fields,
                   "aadhaar",
@@ -384,7 +419,14 @@ export default function DocumentsPage() {
           <div className="flex flex-col gap-3">
             <button
               type="button"
-              onClick={() => setHasGst((v) => !v)}
+              onClick={() => {
+                const next = !hasGst;
+                setHasGst(next);
+                saveFormProgress(STEP_KEY, {
+                  ...bank,
+                  hasGst: next,
+                } as unknown as Record<string, unknown>);
+              }}
               aria-pressed={hasGst}
               className={cn(
                 "flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30",
@@ -420,18 +462,18 @@ export default function DocumentsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  I have GST registration
+                  {t("iHaveGst")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Check this if your business is GST registered
+                  {t("iHaveGstDesc")}
                 </p>
               </div>
             </button>
 
             {hasGst && (
               <DocumentUploadCard
-                title="GST Certificate"
-                description="Upload your GST registration certificate."
+                title={t("gstCertificate")}
+                description={t("gstCertificateDesc")}
                 required
                 status={gst.status}
                 uploadProgress={gst.uploadProgress}
@@ -466,10 +508,10 @@ export default function DocumentsPage() {
           <div className="flex flex-col gap-3">
             <div>
               <p className="text-sm font-medium text-foreground">
-                Bank Account Details <span className="text-destructive">*</span>
+                {t("bankAccountDetails")} <span className="text-destructive">*</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                Payments will be credited to this account.
+                {t("bankAccountDesc")}
               </p>
             </div>
 
@@ -480,19 +522,18 @@ export default function DocumentsPage() {
                   htmlFor="accountHolder"
                   className="text-sm font-medium text-foreground"
                 >
-                  Account Holder Name
+                  {t("accountHolderName")}
                 </label>
                 <input
                   id="accountHolder"
                   type="text"
-                  placeholder="Name as per bank records"
+                  placeholder={t("accountHolderPlaceholder")}
                   value={bank.accountHolder}
-                  onChange={(e) =>
-                    setBank((prev) => ({
-                      ...prev,
-                      accountHolder: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => {
+                    const updated = { ...bank, accountHolder: e.target.value };
+                    setBank(updated);
+                    saveBank(updated);
+                  }}
                   aria-invalid={!!bankErrors.accountHolder}
                   className="rounded-xl border border-input bg-white px-4 py-3 text-base text-foreground placeholder:text-muted-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30"
                 />
@@ -509,20 +550,19 @@ export default function DocumentsPage() {
                   htmlFor="accountNumber"
                   className="text-sm font-medium text-foreground"
                 >
-                  Account Number
+                  {t("accountNumber")}
                 </label>
                 <input
                   id="accountNumber"
                   type="text"
                   inputMode="numeric"
-                  placeholder="Your bank account number"
+                  placeholder={t("accountNumberPlaceholder")}
                   value={bank.accountNumber}
-                  onChange={(e) =>
-                    setBank((prev) => ({
-                      ...prev,
-                      accountNumber: e.target.value.replace(/\D/g, ""),
-                    }))
-                  }
+                  onChange={(e) => {
+                    const updated = { ...bank, accountNumber: e.target.value.replace(/\D/g, "") };
+                    setBank(updated);
+                    saveBank(updated);
+                  }}
                   aria-invalid={!!bankErrors.accountNumber}
                   className="rounded-xl border border-input bg-white px-4 py-3 text-base text-foreground placeholder:text-muted-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30"
                 />
@@ -539,19 +579,18 @@ export default function DocumentsPage() {
                   htmlFor="ifscCode"
                   className="text-sm font-medium text-foreground"
                 >
-                  IFSC Code
+                  {t("ifscCode")}
                 </label>
                 <input
                   id="ifscCode"
                   type="text"
                   placeholder="e.g. SBIN0001234"
                   value={bank.ifscCode}
-                  onChange={(e) =>
-                    setBank((prev) => ({
-                      ...prev,
-                      ifscCode: e.target.value.toUpperCase(),
-                    }))
-                  }
+                  onChange={(e) => {
+                    const updated = { ...bank, ifscCode: e.target.value.toUpperCase() };
+                    setBank(updated);
+                    saveBank(updated);
+                  }}
                   maxLength={11}
                   aria-invalid={!!bankErrors.ifscCode}
                   className="rounded-xl border border-input bg-white px-4 py-3 text-base text-foreground placeholder:text-muted-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30"
@@ -569,16 +608,18 @@ export default function DocumentsPage() {
                   htmlFor="bankName"
                   className="text-sm font-medium text-foreground"
                 >
-                  Bank Name
+                  {t("bankName")}
                 </label>
                 <input
                   id="bankName"
                   type="text"
                   placeholder="e.g. State Bank of India"
                   value={bank.bankName}
-                  onChange={(e) =>
-                    setBank((prev) => ({ ...prev, bankName: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    const updated = { ...bank, bankName: e.target.value };
+                    setBank(updated);
+                    saveBank(updated);
+                  }}
                   aria-invalid={!!bankErrors.bankName}
                   className="rounded-xl border border-input bg-white px-4 py-3 text-base text-foreground placeholder:text-muted-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30"
                 />
@@ -596,7 +637,7 @@ export default function DocumentsPage() {
         {(crossChecks.length > 0 || panAI.confirmed || aadhaarAI.confirmed) && (
           <div className="mt-6 rounded-xl border border-border bg-muted p-4 flex flex-col gap-3">
             <h3 className="text-sm font-semibold text-foreground">
-              Verification Summary
+              {t("verificationSummary")}
             </h3>
 
             {/* Cross-checks */}
@@ -617,9 +658,9 @@ export default function DocumentsPage() {
                   <p className="text-xs font-medium text-foreground">
                     {item.label}{" "}
                     {item.passed ? (
-                      <span className="text-green-600">Passed</span>
+                      <span className="text-green-600">{t("passed")}</span>
                     ) : (
-                      <span className="text-amber-600">Mismatch</span>
+                      <span className="text-amber-600">{t("mismatch")}</span>
                     )}
                   </p>
                   <p className="text-xs text-muted-foreground">{item.detail}</p>
@@ -632,22 +673,21 @@ export default function DocumentsPage() {
               {allVerified ? (
                 <div className="flex items-center gap-2 text-sm font-medium text-green-700">
                   <Check className="size-4" strokeWidth={2.5} />
-                  All documents verified
+                  {t("allDocsVerified")}
                 </div>
               ) : issueCount > 0 ? (
                 <div className="flex items-center gap-2 text-sm font-medium text-amber-700">
                   <AlertTriangle className="size-4" strokeWidth={2.5} />
-                  {issueCount} document{issueCount !== 1 ? "s" : ""} need
-                  {issueCount === 1 ? "s" : ""} attention
+                  {issueCount} {issueCount !== 1 ? t("docsNeedAttentionPlural") : t("docsNeedAttention")}
                 </div>
               ) : hasRejected ? (
                 <div className="flex items-center gap-2 text-sm font-medium text-red-700">
                   <X className="size-4" strokeWidth={2.5} />
-                  Documents rejected — please re-upload
+                  {t("docsRejected")}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  Confirm your documents above to complete verification
+                  {t("confirmDocsAbove")}
                 </div>
               )}
             </div>
@@ -661,7 +701,7 @@ export default function DocumentsPage() {
             disabled={!canContinue}
             className="h-14 w-full rounded-[40px] bg-primary text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] disabled:opacity-50 cursor-pointer"
           >
-            Continue
+            {t("continue")}
             <ArrowRight className="ml-2 size-5" />
           </Button>
 
@@ -671,7 +711,7 @@ export default function DocumentsPage() {
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[40px] border border-border text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-primary hover:text-primary cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <Save className="size-4" />
-            Save &amp; Continue Later
+            {t("saveLater")}
           </button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import type {
   ExtractedDocumentData,
   VerificationResult,
 } from "@/lib/ai/document-parser";
+import { useLanguage } from "@/lib/i18n/context";
 
 interface DocumentVerificationCardProps {
   extractedData: ExtractedDocumentData;
@@ -55,7 +56,12 @@ function getFieldLabel(key: string): string {
   return FIELD_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function ConfidenceBar({ confidence }: { confidence: number }) {
+function ConfidenceBar({ confidence, highLabel, mediumLabel, lowLabel }: {
+  confidence: number;
+  highLabel: string;
+  mediumLabel: string;
+  lowLabel: string;
+}) {
   const pct = Math.round(confidence * 100);
   const color =
     confidence >= 0.8
@@ -64,11 +70,7 @@ function ConfidenceBar({ confidence }: { confidence: number }) {
         ? "bg-amber-500"
         : "bg-red-500";
   const label =
-    confidence >= 0.8
-      ? "High confidence"
-      : confidence >= 0.6
-        ? "Medium confidence"
-        : "Low confidence";
+    confidence >= 0.8 ? highLabel : confidence >= 0.6 ? mediumLabel : lowLabel;
 
   return (
     <div className="flex items-center gap-2">
@@ -85,12 +87,22 @@ function ConfidenceBar({ confidence }: { confidence: number }) {
   );
 }
 
-function StatusBadge({ status }: { status: VerificationResult["status"] }) {
+function StatusBadge({
+  status,
+  verifiedLabel,
+  needsReviewLabel,
+  rejectedLabel,
+}: {
+  status: VerificationResult["status"];
+  verifiedLabel: string;
+  needsReviewLabel: string;
+  rejectedLabel: string;
+}) {
   if (status === "passed") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
         <Check className="size-3.5" strokeWidth={2.5} />
-        Verified
+        {verifiedLabel}
       </span>
     );
   }
@@ -98,14 +110,14 @@ function StatusBadge({ status }: { status: VerificationResult["status"] }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
         <AlertTriangle className="size-3.5" strokeWidth={2.5} />
-        Needs Review
+        {needsReviewLabel}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
       <X className="size-3.5" strokeWidth={2.5} />
-      Rejected
+      {rejectedLabel}
     </span>
   );
 }
@@ -116,6 +128,7 @@ export default function DocumentVerificationCard({
   onConfirm,
   onCorrect,
 }: DocumentVerificationCardProps) {
+  const { t } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
   const [editedFields, setEditedFields] = useState<Record<string, string>>(
     () => ({ ...extractedData.fields })
@@ -131,6 +144,10 @@ export default function DocumentVerificationCard({
     setIsEditing(false);
   }
 
+  const checksLabel = verification.checks.length !== 1
+    ? `${verification.checks.length} ${t("verificationChecksPlural")}`
+    : `${verification.checks.length} ${t("verificationChecks")}`;
+
   return (
     <div
       className={cn(
@@ -143,14 +160,24 @@ export default function DocumentVerificationCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-semibold text-foreground">
-          We found:
+          {t("weFound")}
         </p>
-        <StatusBadge status={verification.status} />
+        <StatusBadge
+          status={verification.status}
+          verifiedLabel={t("verifiedLabel")}
+          needsReviewLabel={t("needsReview")}
+          rejectedLabel={t("rejectedLabel")}
+        />
       </div>
 
       {/* Confidence bar */}
       <div className="mb-3">
-        <ConfidenceBar confidence={extractedData.confidence} />
+        <ConfidenceBar
+          confidence={extractedData.confidence}
+          highLabel={t("highConfidence")}
+          mediumLabel={t("mediumConfidence")}
+          lowLabel={t("lowConfidence")}
+        />
       </div>
 
       {/* Extracted fields */}
@@ -194,8 +221,7 @@ export default function DocumentVerificationCard({
             ) : (
               <ChevronDown className="size-3.5" />
             )}
-            {verification.checks.length} verification check
-            {verification.checks.length !== 1 ? "s" : ""}
+            {checksLabel}
           </button>
 
           {showChecks && (
@@ -246,14 +272,14 @@ export default function DocumentVerificationCard({
             }}
             className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-primary hover:text-primary cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
             type="button"
             onClick={handleSaveCorrections}
             className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
-            Save Corrections
+            {t("saveCorrections")}
           </button>
         </div>
       ) : (
@@ -263,14 +289,14 @@ export default function DocumentVerificationCard({
             onClick={() => setIsEditing(true)}
             className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-primary hover:text-primary cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
-            No, let me fix
+            {t("noLetMeFix")}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
-            Yes, this is correct
+            {t("yesThisIsCorrect")}
           </button>
         </div>
       )}

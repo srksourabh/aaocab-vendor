@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { getVendorVehicles, getVendorDrivers } from "@/lib/vendor";
 import { MOCK_VEHICLES, MOCK_DRIVERS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n/context";
 
 const DEMO_VENDOR_ID = "vendor-001";
 
@@ -35,26 +36,32 @@ function getVehicleStatus(vehicle: typeof MOCK_VEHICLES[number]): VehicleStatus 
   return "active";
 }
 
-function StatusDot({ status }: { status: VehicleStatus | string }) {
+function StatusDot({
+  status,
+  labels,
+}: {
+  status: VehicleStatus | string;
+  labels: { active: string; expiring: string; suspended: string; inactive: string };
+}) {
   const map: Record<string, { cls: string; label: string; icon: React.ReactNode }> = {
     active: {
       cls: "text-green-600",
-      label: "Active",
+      label: labels.active,
       icon: <CheckCircle2 className="size-3.5" />,
     },
     expiring: {
       cls: "text-amber-500",
-      label: "Expiring Soon",
+      label: labels.expiring,
       icon: <AlertTriangle className="size-3.5" />,
     },
     suspended: {
       cls: "text-destructive",
-      label: "Suspended",
+      label: labels.suspended,
       icon: <XCircle className="size-3.5" />,
     },
     inactive: {
       cls: "text-muted-foreground",
-      label: "Inactive",
+      label: labels.inactive,
       icon: <XCircle className="size-3.5" />,
     },
   };
@@ -67,7 +74,21 @@ function StatusDot({ status }: { status: VehicleStatus | string }) {
   );
 }
 
-function VehicleCard({ vehicle }: { vehicle: typeof MOCK_VEHICLES[number] }) {
+function VehicleCard({
+  vehicle,
+  conditionLabel,
+  documentsLabel,
+  verifiedLabel,
+  manageLabel,
+  statusLabels,
+}: {
+  vehicle: typeof MOCK_VEHICLES[number];
+  conditionLabel: string;
+  documentsLabel: string;
+  verifiedLabel: string;
+  manageLabel: string;
+  statusLabels: { active: string; expiring: string; suspended: string; inactive: string };
+}) {
   const vstatus = getVehicleStatus(vehicle);
   return (
     <div className="rounded-xl bg-white border border-border p-5 flex flex-col gap-3">
@@ -80,12 +101,12 @@ function VehicleCard({ vehicle }: { vehicle: typeof MOCK_VEHICLES[number] }) {
             {vehicle.category_name} &middot; {vehicle.make} {vehicle.model} ({vehicle.year})
           </p>
         </div>
-        <StatusDot status={vstatus} />
+        <StatusDot status={vstatus} labels={statusLabels} />
       </div>
 
       {vehicle.condition_score != null && (
         <p className="text-sm text-muted-foreground">
-          Condition:{" "}
+          {conditionLabel}:{" "}
           <span className="font-medium text-foreground">
             {vehicle.condition_score}/10
           </span>
@@ -93,9 +114,9 @@ function VehicleCard({ vehicle }: { vehicle: typeof MOCK_VEHICLES[number] }) {
       )}
 
       <p className="text-sm text-muted-foreground">
-        Documents:{" "}
+        {documentsLabel}:{" "}
         <span className="font-medium text-foreground">
-          {vehicle.docs_verified}/{vehicle.docs_total} verified
+          {vehicle.docs_verified}/{vehicle.docs_total} {verifiedLabel}
         </span>
       </p>
 
@@ -105,14 +126,26 @@ function VehicleCard({ vehicle }: { vehicle: typeof MOCK_VEHICLES[number] }) {
           size="sm"
           className="w-full cursor-pointer transition-all duration-200"
         >
-          Manage
+          {manageLabel}
         </Button>
       </Link>
     </div>
   );
 }
 
-function DriverCard({ driver }: { driver: typeof MOCK_DRIVERS[number] }) {
+function DriverCard({
+  driver,
+  assignedLabel,
+  tripsLabel,
+  manageLabel,
+  statusLabels,
+}: {
+  driver: typeof MOCK_DRIVERS[number];
+  assignedLabel: string;
+  tripsLabel: string;
+  manageLabel: string;
+  statusLabels: { active: string; expiring: string; suspended: string; inactive: string };
+}) {
   return (
     <div className="rounded-xl bg-white border border-border p-5 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
@@ -122,7 +155,7 @@ function DriverCard({ driver }: { driver: typeof MOCK_DRIVERS[number] }) {
           </p>
           <p className="text-xs text-muted-foreground">{driver.phone}</p>
         </div>
-        <StatusDot status={driver.status} />
+        <StatusDot status={driver.status} labels={statusLabels} />
       </div>
 
       <div className="flex items-center gap-1.5">
@@ -131,13 +164,13 @@ function DriverCard({ driver }: { driver: typeof MOCK_DRIVERS[number] }) {
           {driver.overall_rating}
         </span>
         <span className="text-xs text-muted-foreground">
-          ({driver.total_trips} trips)
+          ({driver.total_trips} {tripsLabel})
         </span>
       </div>
 
       {driver.assigned_vehicles.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          Assigned: {driver.assigned_vehicles.join(", ")}
+          {assignedLabel}: {driver.assigned_vehicles.join(", ")}
         </p>
       )}
 
@@ -147,7 +180,7 @@ function DriverCard({ driver }: { driver: typeof MOCK_DRIVERS[number] }) {
           size="sm"
           className="w-full cursor-pointer transition-all duration-200"
         >
-          Manage
+          {manageLabel}
         </Button>
       </Link>
     </div>
@@ -157,6 +190,7 @@ function DriverCard({ driver }: { driver: typeof MOCK_DRIVERS[number] }) {
 type Tab = "vehicles" | "drivers";
 
 export default function FleetPage() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<Tab>("vehicles");
   const [vehicles, setVehicles] = useState<typeof MOCK_VEHICLES>([]);
   const [drivers, setDrivers] = useState<typeof MOCK_DRIVERS>([]);
@@ -170,19 +204,26 @@ export default function FleetPage() {
     );
   }, []);
 
+  const statusLabels = {
+    active: t("active"),
+    expiring: t("expiringSoon"),
+    suspended: t("suspended"),
+    inactive: t("inactive"),
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* Page header */}
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-xl font-bold text-foreground">
-          Fleet Management
+          {t("fleetManagement")}
         </h1>
         <Button
           className="bg-primary text-primary-foreground hover:bg-[#3D3CB8] transition-all duration-200 cursor-pointer"
           size="sm"
         >
           <Plus className="size-4" />
-          {activeTab === "vehicles" ? "Add Vehicle" : "Add Driver"}
+          {activeTab === "vehicles" ? t("addVehicle") : t("addDriverLabel")}
         </Button>
       </div>
 
@@ -204,7 +245,7 @@ export default function FleetPage() {
             ) : (
               <Users className="size-4" />
             )}
-            {tab === "vehicles" ? "Vehicles" : "Drivers"}
+            {tab === "vehicles" ? t("vehicles") : t("drivers")}
           </button>
         ))}
       </div>
@@ -213,11 +254,19 @@ export default function FleetPage() {
       {activeTab === "vehicles" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {vehicles.map((vehicle) => (
-            <VehicleCard key={vehicle.id} vehicle={vehicle} />
+            <VehicleCard
+              key={vehicle.id}
+              vehicle={vehicle}
+              conditionLabel={t("condition2")}
+              documentsLabel={t("docs")}
+              verifiedLabel={t("documentsVerified")}
+              manageLabel={t("manage")}
+              statusLabels={statusLabels}
+            />
           ))}
           {vehicles.length === 0 && (
             <p className="col-span-2 text-center text-sm text-muted-foreground py-12">
-              No vehicles added yet.
+              {t("noVehiclesYet")}
             </p>
           )}
         </div>
@@ -226,11 +275,18 @@ export default function FleetPage() {
       {activeTab === "drivers" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {drivers.map((driver) => (
-            <DriverCard key={driver.id} driver={driver} />
+            <DriverCard
+              key={driver.id}
+              driver={driver}
+              assignedLabel={t("assigned")}
+              tripsLabel={t("rating")}
+              manageLabel={t("manage")}
+              statusLabels={statusLabels}
+            />
           ))}
           {drivers.length === 0 && (
             <p className="col-span-2 text-center text-sm text-muted-foreground py-12">
-              No drivers added yet.
+              {t("noDriversYet")}
             </p>
           )}
         </div>

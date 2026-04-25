@@ -2,6 +2,8 @@
 
 import { Phone } from "lucide-react";
 import Link from "next/link";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useLanguage } from "@/lib/i18n/context";
 
 interface VendorHeaderProps {
   isLoggedIn?: boolean;
@@ -12,6 +14,7 @@ export default function VendorHeader({
   isLoggedIn = false,
   userName,
 }: VendorHeaderProps) {
+  const { t } = useLanguage();
   const initials = userName
     ? userName
         .split(" ")
@@ -33,12 +36,15 @@ export default function VendorHeader({
             AaoCab
           </span>
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-            Vendor Portal
+            {t("vendorPortal")}
           </span>
         </Link>
 
         {/* Right side */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {/* Language toggle */}
+          <LanguageToggle />
+
           {/* Help link */}
           <a
             href="tel:7890302302"

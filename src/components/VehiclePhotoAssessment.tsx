@@ -2,6 +2,7 @@
 
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n/context";
 
 interface PhotoAssessmentData {
   score: number;
@@ -17,28 +18,6 @@ interface VehiclePhotoAssessmentProps {
   onRetake?: () => void;
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const label =
-    score >= 8 ? "Excellent" : score >= 6 ? "Acceptable" : "Poor";
-  const colorClass =
-    score >= 8
-      ? "bg-green-50 text-green-700 border-green-200"
-      : score >= 6
-        ? "bg-amber-50 text-amber-700 border-amber-200"
-        : "bg-red-50 text-red-700 border-red-200";
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold",
-        colorClass
-      )}
-    >
-      {score}/10 — {label}
-    </span>
-  );
-}
-
 function formatPhotoType(type: string): string {
   return type
     .replace(/_/g, " ")
@@ -51,7 +30,22 @@ export default function VehiclePhotoAssessment({
   assessment,
   onRetake,
 }: VehiclePhotoAssessmentProps) {
+  const { t } = useLanguage();
   const showRetake = assessment.score < 7 || !assessment.isValid;
+
+  const scoreLabel =
+    assessment.score >= 8
+      ? t("excellent")
+      : assessment.score >= 6
+        ? t("acceptable")
+        : t("poor");
+
+  const colorClass =
+    assessment.score >= 8
+      ? "bg-green-50 text-green-700 border-green-200"
+      : assessment.score >= 6
+        ? "bg-amber-50 text-amber-700 border-amber-200"
+        : "bg-red-50 text-red-700 border-red-200";
 
   return (
     <div className="rounded-xl border border-border bg-white overflow-hidden">
@@ -65,7 +59,14 @@ export default function VehiclePhotoAssessment({
         />
         {/* Score overlay */}
         <div className="absolute top-2 right-2">
-          <ScoreBadge score={assessment.score} />
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold",
+              colorClass
+            )}
+          >
+            {assessment.score}/10 — {scoreLabel}
+          </span>
         </div>
       </div>
 
@@ -84,7 +85,7 @@ export default function VehiclePhotoAssessment({
           <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.5} />
             <span>
-              This does not look like a {formatPhotoType(photoType).toLowerCase()} photo. Please retake.
+              {t("doesNotLookLike")} {formatPhotoType(photoType).toLowerCase()} {t("photoRetakeMsg")}
             </span>
           </div>
         )}
@@ -102,7 +103,7 @@ export default function VehiclePhotoAssessment({
             className="flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 text-sm font-medium text-red-700 transition-all duration-200 hover:bg-red-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <RefreshCw className="size-4" />
-            Retake Photo
+            {t("retakePhoto")}
           </button>
         )}
       </div>

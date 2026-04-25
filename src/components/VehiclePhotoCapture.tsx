@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Camera, RefreshCw, Check } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/context";
 
 export interface PhotoMetadata {
   timestamp: string;
@@ -32,6 +33,7 @@ export default function VehiclePhotoCapture({
   label,
   onCapture,
 }: VehiclePhotoCaptureProps) {
+  const { t } = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [capturedFile, setCapturedFile] = useState<File | null>(null);
@@ -51,7 +53,6 @@ export default function VehiclePhotoCapture({
     const url = URL.createObjectURL(file);
     setPreview(url);
 
-    // Reset so same file can be re-selected
     e.target.value = "";
   }
 
@@ -66,7 +67,6 @@ export default function VehiclePhotoCapture({
   function handleUsePhoto() {
     if (!capturedFile) return;
 
-    // Attempt to get GPS coordinates
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -77,7 +77,6 @@ export default function VehiclePhotoCapture({
           });
         },
         () => {
-          // Geolocation denied or unavailable — proceed without coordinates
           onCapture(capturedFile, { timestamp, lat: null, lng: null });
         },
         { timeout: 5000 }
@@ -118,7 +117,7 @@ export default function VehiclePhotoCapture({
             <div className="flex size-12 items-center justify-center rounded-full bg-white text-muted-foreground">
               <Camera className="size-6" />
             </div>
-            <p className="text-sm font-medium text-muted-foreground">Take Photo</p>
+            <p className="text-sm font-medium text-muted-foreground">{t("takePhoto")}</p>
             <p className="text-xs text-muted-foreground">{photoType}</p>
           </button>
         ) : confirmed ? (
@@ -137,7 +136,7 @@ export default function VehiclePhotoCapture({
             {/* Confirmed badge */}
             <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-green-600 px-2 py-0.5 text-xs font-medium text-white">
               <Check className="size-3" strokeWidth={2.5} />
-              Saved
+              {t("saved")}
             </div>
             {/* Retake */}
             <button
@@ -146,7 +145,7 @@ export default function VehiclePhotoCapture({
               className="absolute bottom-2 right-2 flex items-center gap-1 rounded-lg bg-black/60 px-2 py-1 text-xs text-white transition-all duration-200 hover:bg-black/80 cursor-pointer focus:outline-none"
             >
               <RefreshCw className="size-3" />
-              Retake
+              {t("retake")}
             </button>
           </div>
         ) : (
@@ -172,7 +171,7 @@ export default function VehiclePhotoCapture({
                 className="flex flex-1 min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-border bg-white text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-destructive hover:text-destructive cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
               >
                 <RefreshCw className="size-4" />
-                Retake
+                {t("retake")}
               </button>
               <button
                 type="button"
@@ -180,7 +179,7 @@ export default function VehiclePhotoCapture({
                 className="flex flex-1 min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
               >
                 <Check className="size-4" />
-                Use This Photo
+                {t("useThisPhoto")}
               </button>
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import ProgressStepper from "@/components/ProgressStepper";
 import DocumentUploadCard, {
   type DocumentStatus,
 } from "@/components/DocumentUploadCard";
+import { useLanguage } from "@/lib/i18n/context";
+import { saveFormProgress, loadFormProgress } from "@/lib/offline-storage";
 
 // ---- Types ----
 
@@ -49,6 +51,8 @@ const MOCK_VEHICLES = [
 
 // Simulated self-driver flag — in production read from profile step state
 const IS_SELF_DRIVER = false;
+
+const STEP_KEY = "register_drivers";
 
 function makeEmptyDriver(): DriverForm {
   return {
@@ -92,17 +96,77 @@ function simulateUpload(
   }, 200);
 }
 
+function serializeDrivers(drivers: DriverForm[]): Record<string, unknown>[] {
+  return drivers.map((d) => ({
+    fullName: d.fullName,
+    phone: d.phone,
+    bank: d.bank,
+    assignedVehicles: d.assignedVehicles,
+  }));
+}
+
 // ---- Component ----
 
 export default function DriversPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [drivers, setDrivers] = useState<DriverForm[]>([makeEmptyDriver()]);
   const [activeIndex, setActiveIndex] = useState(0);
 
+  // Restore saved form data on mount
+  useEffect(() => {
+    const saved = loadFormProgress(STEP_KEY);
+    if (saved && Array.isArray(saved.drivers)) {
+      const restored = (saved.drivers as Record<string, unknown>[]).map(
+        (d): DriverForm => ({
+          fullName: typeof d.fullName === "string" ? d.fullName : "",
+          phone: typeof d.phone === "string" ? d.phone : "",
+          docs: {
+            license: { status: "empty" },
+            aadhaar: { status: "empty" },
+            pan: { status: "empty" },
+            photo: { status: "empty" },
+            policeVerification: { status: "empty" },
+            medicalFitness: { status: "empty" },
+          },
+          bank:
+            d.bank && typeof d.bank === "object"
+              ? {
+                  accountHolder:
+                    typeof (d.bank as Record<string, unknown>).accountHolder === "string"
+                      ? String((d.bank as Record<string, unknown>).accountHolder)
+                      : "",
+                  accountNumber:
+                    typeof (d.bank as Record<string, unknown>).accountNumber === "string"
+                      ? String((d.bank as Record<string, unknown>).accountNumber)
+                      : "",
+                  ifscCode:
+                    typeof (d.bank as Record<string, unknown>).ifscCode === "string"
+                      ? String((d.bank as Record<string, unknown>).ifscCode)
+                      : "",
+                }
+              : { accountHolder: "", accountNumber: "", ifscCode: "" },
+          assignedVehicles: Array.isArray(d.assignedVehicles)
+            ? (d.assignedVehicles as string[])
+            : [],
+        })
+      );
+      if (restored.length > 0) setDrivers(restored);
+    }
+  }, []);
+
+  function persistDrivers(updated: DriverForm[]) {
+    saveFormProgress(STEP_KEY, {
+      drivers: serializeDrivers(updated),
+    } as unknown as Record<string, unknown>);
+  }
+
   function updateDriver(index: number, patch: Partial<DriverForm>) {
-    setDrivers((prev) =>
-      prev.map((d, i) => (i === index ? { ...d, ...patch } : d))
-    );
+    setDrivers((prev) => {
+      const updated = prev.map((d, i) => (i === index ? { ...d, ...patch } : d));
+      persistDrivers(updated);
+      return updated;
+    });
   }
 
   function updateDoc(
@@ -127,8 +191,8 @@ export default function DriversPage() {
   }
 
   function toggleVehicle(driverIndex: number, vehicleId: string) {
-    setDrivers((prev) =>
-      prev.map((d, i) => {
+    setDrivers((prev) => {
+      const updated = prev.map((d, i) => {
         if (i !== driverIndex) return d;
         const has = d.assignedVehicles.includes(vehicleId);
         return {
@@ -137,12 +201,16 @@ export default function DriversPage() {
             ? d.assignedVehicles.filter((v) => v !== vehicleId)
             : [...d.assignedVehicles, vehicleId],
         };
-      })
-    );
+      });
+      persistDrivers(updated);
+      return updated;
+    });
   }
 
   function addDriver() {
-    setDrivers((prev) => [...prev, makeEmptyDriver()]);
+    const updated = [...drivers, makeEmptyDriver()];
+    setDrivers(updated);
+    persistDrivers(updated);
     setActiveIndex(drivers.length);
   }
 
@@ -163,17 +231,17 @@ export default function DriversPage() {
           </div>
           <div>
             <h1 className="font-heading text-xl font-semibold text-foreground">
-              You are the driver
+              {t("youAreTheDriver")}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Your driver details were captured in Step 2. You can skip directly to review.
+              {t("youAreTheDriverDesc")}
             </p>
           </div>
           <Button
             onClick={handleContinue}
             className="h-14 w-full max-w-xs rounded-[40px] bg-primary text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer"
           >
-            Go to Review
+            {t("goToReview")}
             <ArrowRight className="ml-2 size-5" />
           </Button>
         </div>
@@ -201,7 +269,7 @@ export default function DriversPage() {
                   : "bg-white border border-border text-muted-foreground hover:border-primary"
               }`}
             >
-              {d.fullName || `Driver ${i + 1}`}
+              {d.fullName || `${t("driverLabel")} ${i + 1}`}
             </button>
           ))}
         </div>
@@ -210,10 +278,10 @@ export default function DriversPage() {
       <div className="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-baseline justify-between">
           <h1 className="font-heading text-2xl font-semibold text-foreground sm:text-3xl">
-            Add Driver
+            {t("addDriver")}
           </h1>
           <span className="text-sm text-muted-foreground">
-            Driver {activeIndex + 1}
+            {t("driverLabel")} {activeIndex + 1}
           </span>
         </div>
 
@@ -221,12 +289,12 @@ export default function DriversPage() {
           {/* Full Name */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="driverName" className="text-sm font-medium text-foreground">
-              Full Name <span className="text-destructive">*</span>
+              {t("driverFullName")} <span className="text-destructive">*</span>
             </label>
             <input
               id="driverName"
               type="text"
-              placeholder="Driver's full name"
+              placeholder={t("driverFullNamePlaceholder")}
               value={driver.fullName}
               onChange={(e) =>
                 updateDriver(activeIndex, { fullName: e.target.value })
@@ -238,7 +306,7 @@ export default function DriversPage() {
           {/* Phone */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="driverPhone" className="text-sm font-medium text-foreground">
-              Phone Number <span className="text-destructive">*</span>
+              {t("driverPhone")} <span className="text-destructive">*</span>
             </label>
             <div className="flex overflow-hidden rounded-xl border border-input bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/30 transition-all duration-200">
               <span className="flex items-center border-r border-input bg-muted px-4 text-base font-medium text-muted-foreground select-none">
@@ -248,7 +316,7 @@ export default function DriversPage() {
                 id="driverPhone"
                 type="tel"
                 inputMode="numeric"
-                placeholder="10-digit number"
+                placeholder={t("driverPhonePlaceholder")}
                 value={driver.phone}
                 onChange={(e) =>
                   updateDriver(activeIndex, {
@@ -264,12 +332,12 @@ export default function DriversPage() {
           {/* Documents */}
           <div className="flex flex-col gap-4 border-t border-border pt-5">
             <h2 className="font-heading text-lg font-semibold text-foreground">
-              Driver Documents
+              {t("driverDocuments")}
             </h2>
 
             <DocumentUploadCard
-              title="Driving License"
-              description="Upload front and back as a single file."
+              title={t("drivingLicense")}
+              description={t("drivingLicenseDesc")}
               required
               status={driver.docs.license.status}
               uploadProgress={driver.docs.license.uploadProgress}
@@ -280,7 +348,7 @@ export default function DriversPage() {
             />
 
             <DocumentUploadCard
-              title="Aadhaar Card"
+              title={t("aadhaarCard")}
               required
               status={driver.docs.aadhaar.status}
               uploadProgress={driver.docs.aadhaar.uploadProgress}
@@ -291,7 +359,7 @@ export default function DriversPage() {
             />
 
             <DocumentUploadCard
-              title="PAN Card"
+              title={t("panCard")}
               required
               status={driver.docs.pan.status}
               uploadProgress={driver.docs.pan.uploadProgress}
@@ -302,8 +370,8 @@ export default function DriversPage() {
             />
 
             <DocumentUploadCard
-              title="Passport-size Photo"
-              description="Recent clear face photo of the driver."
+              title={t("passportPhoto")}
+              description={t("passportPhotoDesc")}
               required
               status={driver.docs.photo.status}
               uploadProgress={driver.docs.photo.uploadProgress}
@@ -314,7 +382,7 @@ export default function DriversPage() {
             />
 
             <DocumentUploadCard
-              title="Police Verification Certificate"
+              title={t("policeVerification")}
               required
               status={driver.docs.policeVerification.status}
               uploadProgress={driver.docs.policeVerification.uploadProgress}
@@ -325,7 +393,7 @@ export default function DriversPage() {
             />
 
             <DocumentUploadCard
-              title="Medical Fitness Certificate"
+              title={t("medicalFitness")}
               required
               status={driver.docs.medicalFitness.status}
               uploadProgress={driver.docs.medicalFitness.uploadProgress}
@@ -338,17 +406,17 @@ export default function DriversPage() {
             {/* Bank details */}
             <div className="flex flex-col gap-3">
               <p className="text-sm font-medium text-foreground">
-                Bank Account Details <span className="text-destructive">*</span>
+                {t("bankAccountDetails")} <span className="text-destructive">*</span>
               </p>
               <div className="rounded-xl border border-border bg-muted p-4 flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="driverBankHolder" className="text-sm font-medium text-foreground">
-                    Account Holder Name
+                    {t("accountHolderName")}
                   </label>
                   <input
                     id="driverBankHolder"
                     type="text"
-                    placeholder="Name as per bank records"
+                    placeholder={t("accountHolderPlaceholder")}
                     value={driver.bank.accountHolder}
                     onChange={(e) =>
                       updateDriver(activeIndex, {
@@ -361,13 +429,13 @@ export default function DriversPage() {
 
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="driverBankAccount" className="text-sm font-medium text-foreground">
-                    Account Number
+                    {t("accountNumber")}
                   </label>
                   <input
                     id="driverBankAccount"
                     type="text"
                     inputMode="numeric"
-                    placeholder="Bank account number"
+                    placeholder={t("accountNumberPlaceholder")}
                     value={driver.bank.accountNumber}
                     onChange={(e) =>
                       updateDriver(activeIndex, {
@@ -383,7 +451,7 @@ export default function DriversPage() {
 
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="driverIfsc" className="text-sm font-medium text-foreground">
-                    IFSC Code
+                    {t("ifscCode")}
                   </label>
                   <input
                     id="driverIfsc"
@@ -410,7 +478,7 @@ export default function DriversPage() {
           {MOCK_VEHICLES.length > 0 && (
             <div className="flex flex-col gap-3 border-t border-border pt-5">
               <p className="text-sm font-medium text-foreground">
-                Which vehicles can this driver operate?
+                {t("whichVehiclesCanDrive")}
               </p>
               <div className="flex flex-col gap-2">
                 {MOCK_VEHICLES.map((v) => {
@@ -455,14 +523,14 @@ export default function DriversPage() {
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[40px] border-2 border-primary text-sm font-semibold text-primary transition-all duration-200 hover:bg-[#EDEDFB] cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <PlusCircle className="size-4" />
-            Add Another Driver
+            {t("addAnotherDriver")}
           </button>
 
           <Button
             onClick={handleContinue}
             className="h-14 w-full rounded-[40px] bg-primary text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer"
           >
-            Continue
+            {t("continue")}
             <ArrowRight className="ml-2 size-5" />
           </Button>
         </div>

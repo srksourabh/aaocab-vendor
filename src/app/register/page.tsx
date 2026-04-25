@@ -5,10 +5,12 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProgressStepper from "@/components/ProgressStepper";
+import { useLanguage } from "@/lib/i18n/context";
 
 type Stage = "phone" | "otp";
 
 export default function RegisterPage() {
+  const { t } = useLanguage();
   const [stage, setStage] = useState<Stage>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
@@ -26,7 +28,7 @@ export default function RegisterPage() {
 
   function validatePhone(value: string): boolean {
     if (!/^\d{10}$/.test(value)) {
-      setPhoneError("Please enter a valid 10-digit mobile number.");
+      setPhoneError(t("invalidPhone"));
       return false;
     }
     setPhoneError("");
@@ -77,18 +79,20 @@ export default function RegisterPage() {
 
   const otpComplete = otp.every((d) => d !== "");
 
+  const otpSubtitle = stage === "otp"
+    ? `${t("otpSentTo")} +91 ${phone}. ${t("enterOtpBelow")}`
+    : t("enterMobileToStart");
+
   return (
     <div className="flex flex-col gap-6">
       <ProgressStepper currentStep={1} completedSteps={[]} />
 
       <div className="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
         <h1 className="font-heading text-2xl font-semibold text-foreground sm:text-3xl">
-          Join AaoCab as a Vendor
+          {t("joinAaoCab")}
         </h1>
         <p className="mt-1 text-base text-muted-foreground">
-          {stage === "phone"
-            ? "Enter your mobile number to get started."
-            : `OTP sent to +91 ${phone}. Enter the 6-digit code below.`}
+          {otpSubtitle}
         </p>
 
         <div className="mt-6 flex flex-col gap-4">
@@ -100,7 +104,7 @@ export default function RegisterPage() {
                   htmlFor="phone"
                   className="text-sm font-medium text-foreground"
                 >
-                  Mobile Number
+                  {t("mobileNumber")}
                 </label>
                 <div className="flex overflow-hidden rounded-[40px] border border-input bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/30 transition-all duration-200">
                   <span className="flex items-center border-r border-input bg-muted px-4 text-base font-medium text-muted-foreground select-none">
@@ -110,7 +114,7 @@ export default function RegisterPage() {
                     id="phone"
                     type="tel"
                     inputMode="numeric"
-                    placeholder="Enter 10-digit number"
+                    placeholder={t("enterTenDigitNumber")}
                     value={phone}
                     onChange={handlePhoneChange}
                     maxLength={10}
@@ -131,7 +135,7 @@ export default function RegisterPage() {
                 disabled={phone.length < 10 || isLoading}
                 className="h-14 w-full rounded-[40px] bg-primary text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] disabled:opacity-50 cursor-pointer"
               >
-                {isLoading ? "Sending..." : "Send OTP"}
+                {isLoading ? t("sending") : t("sendOtp")}
                 {!isLoading && <ArrowRight className="ml-2 size-5" />}
               </Button>
             </>
@@ -140,7 +144,7 @@ export default function RegisterPage() {
               {/* OTP input — 6 separate boxes */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">
-                  Enter OTP
+                  {t("enterOtp")}
                 </label>
                 <div className="flex gap-2 sm:gap-3" role="group" aria-label="One-time password">
                   {otp.map((digit, index) => (
@@ -165,7 +169,7 @@ export default function RegisterPage() {
                 disabled={!otpComplete || isLoading}
                 className="h-14 w-full rounded-[40px] bg-primary text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] disabled:opacity-50 cursor-pointer"
               >
-                {isLoading ? "Verifying..." : "Verify OTP"}
+                {isLoading ? t("verifying") : t("verifyOtp")}
                 {!isLoading && <ArrowRight className="ml-2 size-5" />}
               </Button>
 
@@ -177,7 +181,7 @@ export default function RegisterPage() {
                 }}
                 className="text-sm text-muted-foreground underline-offset-4 hover:underline cursor-pointer transition-all duration-200"
               >
-                Change mobile number
+                {t("changeMobileNumber")}
               </button>
             </>
           )}
@@ -185,12 +189,12 @@ export default function RegisterPage() {
 
         <div className="mt-6 border-t border-border pt-4 text-center">
           <p className="text-sm text-muted-foreground">
-            Already registered?{" "}
+            {t("alreadyRegistered")}{" "}
             <Link
               href="/login"
               className="font-medium text-primary underline-offset-4 hover:underline cursor-pointer"
             >
-              Login instead
+              {t("loginInstead")}
             </Link>
           </p>
         </div>

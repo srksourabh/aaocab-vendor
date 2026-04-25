@@ -1,27 +1,32 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Banknote, CalendarCheck, Wallet } from "lucide-react";
 import VendorHeader from "@/components/VendorHeader";
 import { Button } from "@/components/ui/button";
-
-const BENEFITS = [
-  {
-    icon: Wallet,
-    title: "Zero Investment",
-    description: "No joining fees, no deposits. Start earning from day one.",
-  },
-  {
-    icon: CalendarCheck,
-    title: "Regular Bookings",
-    description: "Consistent trip flow from corporate and leisure travellers.",
-  },
-  {
-    icon: Banknote,
-    title: "Timely Payments",
-    description: "Guaranteed 7-day payment cycles. No delays, no hassle.",
-  },
-];
+import { useLanguage } from "@/lib/i18n/context";
 
 export default function HomePage() {
+  const { t } = useLanguage();
+
+  const BENEFITS = [
+    {
+      icon: Wallet,
+      titleKey: "benefit1Title" as const,
+      descKey: "benefit1Desc" as const,
+    },
+    {
+      icon: CalendarCheck,
+      titleKey: "benefit2Title" as const,
+      descKey: "benefit2Desc" as const,
+    },
+    {
+      icon: Banknote,
+      titleKey: "benefit3Title" as const,
+      descKey: "benefit3Desc" as const,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-muted flex flex-col">
       <VendorHeader />
@@ -32,37 +37,34 @@ export default function HomePage() {
           <div className="mx-auto max-w-4xl px-4 py-16 sm:py-24 text-center">
             <div className="inline-block rounded-full bg-[#EDEDFB] px-4 py-1.5 mb-4">
               <span className="text-sm font-semibold text-primary">
-                Vendor Partner Program
+                {t("vendorPartnerProgram")}
               </span>
             </div>
 
             <h1 className="font-heading text-3xl font-bold text-foreground sm:text-5xl leading-tight">
-              Join India&apos;s Fastest-Growing
-              <br />
-              <span style={{ color: "#4F4ED6" }}>Car Rental Network</span>
+              {t("landingHero")}
             </h1>
 
             <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-              Register your fleet with AaoCab and start earning today. Trusted
-              by hundreds of vendors across India.
+              {t("landingSubtitle")}
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center sm:gap-4">
               <Link href="/register">
                 <Button className="h-14 w-full sm:w-auto rounded-[40px] bg-primary px-8 text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer">
-                  Register Now
+                  {t("registerNow")}
                   <ArrowRight className="ml-2 size-5" />
                 </Button>
               </Link>
             </div>
 
             <p className="mt-4 text-sm text-muted-foreground">
-              Already a partner?{" "}
+              {t("alreadyPartner")}{" "}
               <Link
                 href="/login"
                 className="font-medium text-primary underline-offset-4 hover:underline cursor-pointer"
               >
-                Login here
+                {t("loginHere")}
               </Link>
             </p>
           </div>
@@ -71,7 +73,7 @@ export default function HomePage() {
         {/* Benefits section */}
         <section className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
           <h2 className="font-heading text-xl font-semibold text-foreground text-center mb-8">
-            Why partner with AaoCab?
+            {t("whyPartner")}
           </h2>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -79,17 +81,17 @@ export default function HomePage() {
               const Icon = benefit.icon;
               return (
                 <div
-                  key={benefit.title}
+                  key={benefit.titleKey}
                   className="rounded-2xl bg-white border border-border p-6 flex flex-col gap-3"
                 >
                   <div className="flex size-12 items-center justify-center rounded-xl bg-[#EDEDFB] text-primary">
                     <Icon className="size-6" />
                   </div>
                   <h3 className="font-heading text-base font-semibold text-foreground">
-                    {benefit.title}
+                    {t(benefit.titleKey)}
                   </h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {benefit.description}
+                    {t(benefit.descKey)}
                   </p>
                 </div>
               );
@@ -100,7 +102,7 @@ export default function HomePage() {
           <div className="mt-10 text-center">
             <Link href="/register">
               <Button className="h-12 rounded-[40px] bg-primary px-8 text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer">
-                Get Started — It&apos;s Free
+                {t("getStartedFree")}
                 <ArrowRight className="ml-2 size-5" />
               </Button>
             </Link>

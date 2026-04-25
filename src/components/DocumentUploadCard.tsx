@@ -11,6 +11,7 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n/context";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -52,6 +53,7 @@ export default function DocumentUploadCard({
   rejectionReason,
   onUpload,
 }: DocumentUploadCardProps) {
+  const { t } = useLanguage();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sizeError, setSizeError] = useState("");
@@ -59,7 +61,7 @@ export default function DocumentUploadCard({
   function handleFileSelected(file: File) {
     setSizeError("");
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      setSizeError("File size must be 5MB or less.");
+      setSizeError(t("fileSizeError"));
       return;
     }
     onUpload(file);
@@ -68,7 +70,6 @@ export default function DocumentUploadCard({
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) handleFileSelected(file);
-    // Reset so same file can be re-selected
     e.target.value = "";
   }
 
@@ -85,13 +86,13 @@ export default function DocumentUploadCard({
         {status === "verified" && (
           <span className="ml-auto flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
             <Check className="size-3" strokeWidth={2.5} />
-            Verified
+            {t("verifiedLabel")}
           </span>
         )}
         {status === "rejected" && (
           <span className="ml-auto flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
             <X className="size-3" strokeWidth={2.5} />
-            Rejected
+            {t("rejectedLabel")}
           </span>
         )}
       </div>
@@ -136,7 +137,7 @@ export default function DocumentUploadCard({
               <Upload className="size-5" />
             </div>
             <p className="text-sm text-muted-foreground">
-              Upload {title}
+              {title}
             </p>
             <div className="flex gap-2">
               <button
@@ -145,7 +146,7 @@ export default function DocumentUploadCard({
                 className="flex min-h-[44px] items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-foreground transition-all duration-200 hover:border-primary hover:text-primary cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
               >
                 <Camera className="size-4" />
-                Take Photo
+                {t("takePhoto")}
               </button>
               <button
                 type="button"
@@ -153,7 +154,7 @@ export default function DocumentUploadCard({
                 className="flex min-h-[44px] items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-foreground transition-all duration-200 hover:border-primary hover:text-primary cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
               >
                 <FolderOpen className="size-4" />
-                Choose File
+                {t("chooseFile")}
               </button>
             </div>
           </div>
@@ -162,7 +163,7 @@ export default function DocumentUploadCard({
         {/* Uploading state */}
         {status === "uploading" && (
           <div className="flex flex-col items-center justify-center gap-3 p-5">
-            <p className="text-sm font-medium text-primary">Uploading...</p>
+            <p className="text-sm font-medium text-primary">{t("uploading")}</p>
             <div className="h-2 w-full overflow-hidden rounded-full bg-white">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-300"
@@ -219,7 +220,7 @@ export default function DocumentUploadCard({
                 aria-label={`Replace ${title}`}
               >
                 <RefreshCw className="size-3.5" />
-                Replace
+                {t("replace")}
               </button>
             )}
           </div>

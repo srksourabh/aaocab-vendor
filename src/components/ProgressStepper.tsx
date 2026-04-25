@@ -2,14 +2,7 @@
 
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const STEPS = [
-  { number: 1, label: "Register" },
-  { number: 2, label: "Documents" },
-  { number: 3, label: "Vehicles" },
-  { number: 4, label: "Drivers" },
-  { number: 5, label: "Review" },
-];
+import { useLanguage } from "@/lib/i18n/context";
 
 interface ProgressStepperProps {
   currentStep: number;
@@ -20,6 +13,16 @@ export default function ProgressStepper({
   currentStep,
   completedSteps = [],
 }: ProgressStepperProps) {
+  const { t } = useLanguage();
+
+  const STEPS = [
+    { number: 1, label: t("register") },
+    { number: 2, label: t("documents") },
+    { number: 3, label: t("vehicles") },
+    { number: 4, label: t("drivers") },
+    { number: 5, label: t("review") },
+  ];
+
   const currentStepData = STEPS.find((s) => s.number === currentStep);
 
   return (
@@ -27,7 +30,7 @@ export default function ProgressStepper({
       {/* Mobile view: compact text progress */}
       <div className="flex items-center justify-between md:hidden mb-4">
         <p className="text-sm font-medium text-muted-foreground">
-          Step {currentStep} of {STEPS.length}
+          {t("stepLabel")} {currentStep} {t("stepOf")} {STEPS.length}
         </p>
         <p className="text-sm font-semibold text-foreground">
           {currentStepData?.label}
@@ -55,7 +58,7 @@ export default function ProgressStepper({
                       "bg-primary text-primary-foreground shadow-md",
                     isUpcoming && "bg-muted text-muted-foreground"
                   )}
-                  aria-label={`Step ${step.number}: ${step.label}${isCompleted ? " (completed)" : isActive ? " (current)" : ""}`}
+                  aria-label={`${t("stepLabel")} ${step.number}: ${step.label}${isCompleted ? " (completed)" : isActive ? " (current)" : ""}`}
                 >
                   {isCompleted ? (
                     <Check className="size-4" strokeWidth={2.5} />

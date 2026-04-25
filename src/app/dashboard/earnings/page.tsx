@@ -5,16 +5,11 @@ import { IndianRupee, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getVendorEarnings, type EarningRow, type EarningsSummary } from "@/lib/vendor";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n/context";
 
 const DEMO_VENDOR_ID = "vendor-001";
 
 type Period = "this_month" | "last_month" | "last_3_months";
-
-const PERIODS: { key: Period; label: string }[] = [
-  { key: "this_month", label: "This Month" },
-  { key: "last_month", label: "Last Month" },
-  { key: "last_3_months", label: "Last 3 Months" },
-];
 
 function PayoutStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -78,10 +73,17 @@ function downloadStatement(
 }
 
 export default function EarningsPage() {
+  const { t } = useLanguage();
   const [period, setPeriod] = useState<Period>("this_month");
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [rows, setRows] = useState<EarningRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const PERIODS: { key: Period; label: string }[] = [
+    { key: "this_month", label: t("thisMonth") },
+    { key: "last_month", label: t("lastMonth") },
+    { key: "last_3_months", label: t("last3Months") },
+  ];
 
   useEffect(() => {
     setLoading(true);
@@ -97,7 +99,7 @@ export default function EarningsPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h1 className="font-heading text-xl font-bold text-foreground">
-          Earnings
+          {t("earnings")}
         </h1>
         {summary && (
           <Button
@@ -107,7 +109,7 @@ export default function EarningsPage() {
             onClick={() => downloadStatement(summary, rows)}
           >
             <Download className="size-3.5" />
-            Download Statement
+            {t("downloadStatement")}
           </Button>
         )}
       </div>
@@ -132,7 +134,7 @@ export default function EarningsPage() {
 
       {loading || !summary ? (
         <div className="py-12 text-center text-sm text-muted-foreground">
-          Loading earnings...
+          {t("loadingEarnings")}
         </div>
       ) : (
         <>
@@ -143,7 +145,7 @@ export default function EarningsPage() {
                 <div className="flex size-8 items-center justify-center rounded-lg bg-[#E6F7F5]">
                   <IndianRupee className="size-4 text-accent" />
                 </div>
-                <p className="text-xs text-muted-foreground">Total Earned</p>
+                <p className="text-xs text-muted-foreground">{t("totalEarned")}</p>
               </div>
               <p className="font-heading text-2xl font-bold text-foreground">
                 ₹{formatCurrency(summary.total_fare)}
@@ -152,7 +154,7 @@ export default function EarningsPage() {
 
             <div className="rounded-xl bg-white border border-border p-5">
               <p className="text-xs text-muted-foreground mb-1">
-                Commission Deducted
+                {t("commissionDeducted")}
               </p>
               <p className="font-heading text-xl font-semibold text-destructive">
                 -₹{formatCurrency(summary.commission_amount)}
@@ -161,14 +163,14 @@ export default function EarningsPage() {
             </div>
 
             <div className="rounded-xl bg-[#E6F7F5] border border-[#C0EAE5] p-5">
-              <p className="text-xs text-accent font-medium mb-1">Net Payout</p>
+              <p className="text-xs text-accent font-medium mb-1">{t("netPayout")}</p>
               <p className="font-heading text-xl font-bold text-accent">
                 ₹{formatCurrency(summary.vendor_payout)}
               </p>
             </div>
 
             <div className="rounded-xl bg-amber-50 border border-amber-200 p-5">
-              <p className="text-xs text-amber-700 mb-1">Pending Payout</p>
+              <p className="text-xs text-amber-700 mb-1">{t("pendingPayout")}</p>
               <p className="font-heading text-xl font-bold text-amber-700">
                 ₹{formatCurrency(summary.pending_payout)}
               </p>
@@ -178,7 +180,7 @@ export default function EarningsPage() {
           {/* Per-trip breakdown */}
           <section>
             <h2 className="font-heading text-base font-semibold text-foreground mb-3">
-              Trip Breakdown
+              {t("tripBreakdown")}
             </h2>
 
             {/* Desktop table */}
@@ -187,25 +189,25 @@ export default function EarningsPage() {
                 <thead className="border-b border-border">
                   <tr className="text-left">
                     <th className="px-4 py-3 text-xs font-semibold text-muted-foreground">
-                      Date
+                      {t("date")}
                     </th>
                     <th className="px-4 py-3 text-xs font-semibold text-muted-foreground">
-                      Booking
+                      {t("booking")}
                     </th>
                     <th className="px-4 py-3 text-xs font-semibold text-muted-foreground">
-                      Route
+                      {t("route")}
                     </th>
                     <th className="px-4 py-3 text-xs font-semibold text-muted-foreground text-right">
-                      Fare
+                      {t("fare")}
                     </th>
                     <th className="px-4 py-3 text-xs font-semibold text-muted-foreground text-right">
-                      Commission
+                      {t("commission")}
                     </th>
                     <th className="px-4 py-3 text-xs font-semibold text-muted-foreground text-right">
-                      Payout
+                      {t("payout")}
                     </th>
                     <th className="px-4 py-3 text-xs font-semibold text-muted-foreground">
-                      Status
+                      {t("status")}
                     </th>
                   </tr>
                 </thead>
@@ -261,15 +263,15 @@ export default function EarningsPage() {
                     <PayoutStatusBadge status={row.payout_status} />
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Fare</span>
+                    <span className="text-muted-foreground">{t("fare")}</span>
                     <span className="font-medium">₹{formatCurrency(row.total_fare)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Commission (20%)</span>
+                    <span className="text-muted-foreground">{t("commission")}</span>
                     <span className="text-destructive">-₹{formatCurrency(row.commission_amount)}</span>
                   </div>
                   <div className="flex justify-between text-sm border-t border-border pt-2">
-                    <span className="font-medium">Your Payout</span>
+                    <span className="font-medium">{t("yourPayoutLabel")}</span>
                     <span className="font-bold text-accent">₹{formatCurrency(row.vendor_payout)}</span>
                   </div>
                 </div>
@@ -278,7 +280,7 @@ export default function EarningsPage() {
 
             {rows.length === 0 && (
               <p className="text-center text-sm text-muted-foreground py-12">
-                No earnings data for this period.
+                {t("noEarningsData")}
               </p>
             )}
           </section>

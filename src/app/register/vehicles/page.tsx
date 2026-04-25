@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,15 @@ import DocumentUploadCard, {
 import VehiclePhotoCapture, {
   type PhotoMetadata,
 } from "@/components/VehiclePhotoCapture";
-import VehiclePhotoAssessment from "@/components/VehiclePhotoAssessment";
+import dynamic from "next/dynamic";
+
+const VehiclePhotoAssessment = dynamic(
+  () => import("@/components/VehiclePhotoAssessment"),
+  { ssr: false }
+);
 import { assessVehiclePhoto, type PhotoAssessment } from "@/lib/ai/document-parser";
+import { useLanguage } from "@/lib/i18n/context";
+import { saveFormProgress, loadFormProgress } from "@/lib/offline-storage";
 
 // ---- Constants ----
 
@@ -43,16 +50,29 @@ const YEARS = Array.from({ length: CURRENT_YEAR - 2014 }, (_, i) =>
   String(CURRENT_YEAR - i)
 );
 
-const PHOTO_SLOTS: { type: string; label: string }[] = [
-  { type: "front", label: "Front View" },
-  { type: "rear", label: "Rear View" },
-  { type: "left", label: "Left Side" },
-  { type: "right", label: "Right Side" },
-  { type: "interior_front", label: "Interior Front (Dashboard)" },
-  { type: "interior_rear", label: "Interior Rear (Seats)" },
-  { type: "boot", label: "Boot / Trunk" },
-  { type: "odometer", label: "Odometer Reading" },
+const PHOTO_SLOT_TYPES = [
+  "front",
+  "rear",
+  "left",
+  "right",
+  "interior_front",
+  "interior_rear",
+  "boot",
+  "odometer",
 ];
+
+const PHOTO_SLOT_LABELS_EN: Record<string, string> = {
+  front: "Front View",
+  rear: "Rear View",
+  left: "Left Side",
+  right: "Right Side",
+  interior_front: "Interior Front (Dashboard)",
+  interior_rear: "Interior Rear (Seats)",
+  boot: "Boot / Trunk",
+  odometer: "Odometer Reading",
+};
+
+const STEP_KEY = "register_vehicles";
 
 // ---- Types ----
 
@@ -167,17 +187,67 @@ function computeAverageScore(
   return Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
 }
 
+// Serialize vehicle form (no File objects) for localStorage
+function serializeVehicles(vehicles: VehicleForm[]): Record<string, unknown>[] {
+  return vehicles.map((v) => ({
+    registrationNumber: v.registrationNumber,
+    vehicleType: v.vehicleType,
+    make: v.make,
+    model: v.model,
+    year: v.year,
+    fuelType: v.fuelType,
+    seatingCapacity: v.seatingCapacity,
+  }));
+}
+
 // ---- Component ----
 
 export default function VehiclesPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [vehicles, setVehicles] = useState<VehicleForm[]>([makeEmptyVehicle()]);
   const [activeIndex, setActiveIndex] = useState(0);
 
+  // Restore saved form data on mount (text fields only — files cannot be persisted)
+  useEffect(() => {
+    const saved = loadFormProgress(STEP_KEY);
+    if (saved && Array.isArray(saved.vehicles)) {
+      const restored = (saved.vehicles as Record<string, unknown>[]).map(
+        (v): VehicleForm => ({
+          registrationNumber: typeof v.registrationNumber === "string" ? v.registrationNumber : "",
+          vehicleType: typeof v.vehicleType === "string" ? v.vehicleType : "",
+          make: typeof v.make === "string" ? v.make : "",
+          model: typeof v.model === "string" ? v.model : "",
+          year: typeof v.year === "string" ? v.year : "",
+          fuelType: typeof v.fuelType === "string" ? v.fuelType : "",
+          seatingCapacity: typeof v.seatingCapacity === "string" ? v.seatingCapacity : "",
+          docs: {
+            rc: { status: "empty" },
+            insurance: { status: "empty" },
+            fitness: { status: "empty" },
+            puc: { status: "empty" },
+            permit: { status: "empty" },
+          },
+          photos: {},
+          photoAI: {},
+        })
+      );
+      if (restored.length > 0) setVehicles(restored);
+    }
+  }, []);
+
+  function persistVehicles(updated: VehicleForm[]) {
+    saveFormProgress(STEP_KEY, {
+      vehicles: serializeVehicles(updated),
+    } as unknown as Record<string, unknown>);
+  }
+
   function updateVehicle(index: number, patch: Partial<VehicleForm>) {
-    setVehicles((prev) =>
-      prev.map((v, i) => (i === index ? { ...v, ...patch } : v))
-    );
+    setVehicles((prev) => {
+      const updated = prev.map((v, i) => (i === index ? { ...v, ...patch } : v));
+      persistVehicles(updated);
+      return updated;
+    });
   }
 
   function handleRegNumberChange(index: number, raw: string) {
@@ -223,7 +293,6 @@ export default function VehiclesPage() {
     ) => {
       const previewUrl = URL.createObjectURL(file);
 
-      // Save the photo
       setVehicles((prev) =>
         prev.map((v, i) => {
           if (i !== vehicleIndex) return v;
@@ -241,7 +310,6 @@ export default function VehiclesPage() {
         })
       );
 
-      // Run AI assessment
       assessVehiclePhoto(previewUrl, photoType).then((assessment) => {
         setVehicles((prev) =>
           prev.map((v, i) => {
@@ -274,7 +342,9 @@ export default function VehiclesPage() {
   }
 
   function addVehicle() {
-    setVehicles((prev) => [...prev, makeEmptyVehicle()]);
+    const updated = [...vehicles, makeEmptyVehicle()];
+    setVehicles(updated);
+    persistVehicles(updated);
     setActiveIndex(vehicles.length);
   }
 
@@ -303,7 +373,7 @@ export default function VehiclesPage() {
                   : "bg-white border border-border text-muted-foreground hover:border-primary"
               }`}
             >
-              {v.registrationNumber || `Vehicle ${i + 1}`}
+              {v.registrationNumber || `${t("vehicleLabel")} ${i + 1}`}
             </button>
           ))}
         </div>
@@ -312,10 +382,10 @@ export default function VehiclesPage() {
       <div className="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-baseline justify-between">
           <h1 className="font-heading text-2xl font-semibold text-foreground sm:text-3xl">
-            Add Your Vehicle
+            {t("addYourVehicle")}
           </h1>
           <span className="text-sm text-muted-foreground">
-            Vehicle {activeIndex + 1} of {vehicles.length}
+            {t("vehicleLabel")} {activeIndex + 1} {t("vehicleOf")} {vehicles.length}
           </span>
         </div>
 
@@ -326,12 +396,12 @@ export default function VehiclesPage() {
               htmlFor="regNumber"
               className="text-sm font-medium text-foreground"
             >
-              Registration Number <span className="text-destructive">*</span>
+              {t("registrationNumber")} <span className="text-destructive">*</span>
             </label>
             <input
               id="regNumber"
               type="text"
-              placeholder="e.g. KA-01-AB-1234"
+              placeholder={t("registrationNumberPlaceholder")}
               value={vehicle.registrationNumber}
               onChange={(e) =>
                 handleRegNumberChange(activeIndex, e.target.value)
@@ -347,7 +417,7 @@ export default function VehiclesPage() {
               htmlFor="vehicleType"
               className="text-sm font-medium text-foreground"
             >
-              Vehicle Type <span className="text-destructive">*</span>
+              {t("vehicleType")} <span className="text-destructive">*</span>
             </label>
             <select
               id="vehicleType"
@@ -357,10 +427,10 @@ export default function VehiclesPage() {
               }
               className="rounded-xl border border-input bg-background px-4 py-4 text-base text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30 cursor-pointer"
             >
-              <option value="">Select vehicle type</option>
-              {VEHICLE_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+              <option value="">{t("selectVehicleType")}</option>
+              {VEHICLE_TYPES.map((vt) => (
+                <option key={vt.value} value={vt.value}>
+                  {vt.label}
                 </option>
               ))}
             </select>
@@ -373,7 +443,7 @@ export default function VehiclesPage() {
                 htmlFor="make"
                 className="text-sm font-medium text-foreground"
               >
-                Make <span className="text-destructive">*</span>
+                {t("make")} <span className="text-destructive">*</span>
               </label>
               <select
                 id="make"
@@ -383,7 +453,7 @@ export default function VehiclesPage() {
                 }
                 className="rounded-xl border border-input bg-background px-3 py-4 text-base text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30 cursor-pointer"
               >
-                <option value="">Select make</option>
+                <option value="">{t("selectMake")}</option>
                 {MAKES.map((m) => (
                   <option key={m} value={m}>
                     {m}
@@ -397,12 +467,12 @@ export default function VehiclesPage() {
                 htmlFor="model"
                 className="text-sm font-medium text-foreground"
               >
-                Model <span className="text-destructive">*</span>
+                {t("model")} <span className="text-destructive">*</span>
               </label>
               <input
                 id="model"
                 type="text"
-                placeholder="e.g. Innova"
+                placeholder={t("modelPlaceholder")}
                 value={vehicle.model}
                 onChange={(e) =>
                   updateVehicle(activeIndex, { model: e.target.value })
@@ -419,7 +489,7 @@ export default function VehiclesPage() {
                 htmlFor="year"
                 className="text-sm font-medium text-foreground"
               >
-                Year <span className="text-destructive">*</span>
+                {t("year")} <span className="text-destructive">*</span>
               </label>
               <select
                 id="year"
@@ -429,7 +499,7 @@ export default function VehiclesPage() {
                 }
                 className="rounded-xl border border-input bg-background px-3 py-4 text-base text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30 cursor-pointer"
               >
-                <option value="">Year</option>
+                <option value="">{t("yearPlaceholder")}</option>
                 {YEARS.map((y) => (
                   <option key={y} value={y}>
                     {y}
@@ -443,7 +513,7 @@ export default function VehiclesPage() {
                 htmlFor="fuelType"
                 className="text-sm font-medium text-foreground"
               >
-                Fuel Type <span className="text-destructive">*</span>
+                {t("fuelType")} <span className="text-destructive">*</span>
               </label>
               <select
                 id="fuelType"
@@ -453,7 +523,7 @@ export default function VehiclesPage() {
                 }
                 className="rounded-xl border border-input bg-background px-3 py-4 text-base text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-ring/30 cursor-pointer"
               >
-                <option value="">Select fuel</option>
+                <option value="">{t("selectFuel")}</option>
                 {FUEL_TYPES.map((f) => (
                   <option key={f} value={f}>
                     {f}
@@ -467,10 +537,10 @@ export default function VehiclesPage() {
           {vehicle.seatingCapacity && (
             <div className="rounded-xl border border-border bg-muted px-4 py-3 flex items-center gap-2">
               <span className="text-sm text-muted-foreground">
-                Seating Capacity:
+                {t("seatingCapacity")}:
               </span>
               <span className="text-sm font-semibold text-foreground">
-                {vehicle.seatingCapacity} passengers
+                {vehicle.seatingCapacity} {t("passengers")}
               </span>
             </div>
           )}
@@ -478,12 +548,12 @@ export default function VehiclesPage() {
           {/* Vehicle Documents */}
           <div className="flex flex-col gap-4 border-t border-border pt-5">
             <h2 className="font-heading text-lg font-semibold text-foreground">
-              Vehicle Documents
+              {t("vehicleDocuments")}
             </h2>
 
             <DocumentUploadCard
-              title="RC Book"
-              description="Registration Certificate of the vehicle."
+              title={t("rcBook")}
+              description={t("rcBookDesc")}
               required
               status={vehicle.docs.rc.status}
               uploadProgress={vehicle.docs.rc.uploadProgress}
@@ -494,7 +564,7 @@ export default function VehiclesPage() {
             />
 
             <DocumentUploadCard
-              title="Insurance Certificate"
+              title={t("insuranceCertificate")}
               required
               status={vehicle.docs.insurance.status}
               uploadProgress={vehicle.docs.insurance.uploadProgress}
@@ -507,7 +577,7 @@ export default function VehiclesPage() {
             />
 
             <DocumentUploadCard
-              title="Fitness Certificate"
+              title={t("fitnessCertificate")}
               required
               status={vehicle.docs.fitness.status}
               uploadProgress={vehicle.docs.fitness.uploadProgress}
@@ -520,7 +590,7 @@ export default function VehiclesPage() {
             />
 
             <DocumentUploadCard
-              title="PUC Certificate"
+              title={t("pucCertificate")}
               required
               status={vehicle.docs.puc.status}
               uploadProgress={vehicle.docs.puc.uploadProgress}
@@ -531,8 +601,8 @@ export default function VehiclesPage() {
             />
 
             <DocumentUploadCard
-              title="Permit"
-              description="Tourist permit or commercial permit (if applicable)."
+              title={t("permit")}
+              description={t("permitDesc")}
               required={false}
               status={vehicle.docs.permit.status}
               uploadProgress={vehicle.docs.permit.uploadProgress}
@@ -549,30 +619,29 @@ export default function VehiclesPage() {
           <div className="flex flex-col gap-4 border-t border-border pt-5">
             <div>
               <h2 className="font-heading text-lg font-semibold text-foreground">
-                Vehicle Photos
+                {t("vehiclePhotos")}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Take photos from the required angles. Timestamp is added
-                automatically.
+                {t("vehiclePhotosDesc")}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-              {PHOTO_SLOTS.map((slot) => {
-                const photo = vehicle.photos[slot.type];
-                const ai = vehicle.photoAI[slot.type];
+              {PHOTO_SLOT_TYPES.map((slotType) => {
+                const slotLabel = PHOTO_SLOT_LABELS_EN[slotType] ?? slotType;
+                const photo = vehicle.photos[slotType];
+                const ai = vehicle.photoAI[slotType];
 
                 return (
-                  <div key={slot.type} className="flex flex-col gap-2">
-                    {/* Show the capture component if no photo yet, or if user needs to retake */}
+                  <div key={slotType} className="flex flex-col gap-2">
                     {!photo ? (
                       <VehiclePhotoCapture
-                        photoType={slot.type}
-                        label={slot.label}
+                        photoType={slotType}
+                        label={slotLabel}
                         onCapture={(file, metadata) =>
                           handlePhotoCapture(
                             activeIndex,
-                            slot.type,
+                            slotType,
                             file,
                             metadata
                           )
@@ -581,7 +650,7 @@ export default function VehiclesPage() {
                     ) : (
                       <div className="flex flex-col gap-1.5">
                         <p className="text-sm font-medium text-foreground">
-                          {slot.label}
+                          {slotLabel}
                         </p>
 
                         {/* Scanning state */}
@@ -589,7 +658,7 @@ export default function VehiclesPage() {
                           <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-[#EDEDFB] px-3 py-3">
                             <Loader2 className="size-4 animate-spin text-primary" />
                             <span className="text-xs font-medium text-primary">
-                              Analyzing photo...
+                              {t("analyzingPhoto")}
                             </span>
                           </div>
                         )}
@@ -598,21 +667,21 @@ export default function VehiclesPage() {
                         {ai?.assessment && (
                           <VehiclePhotoAssessment
                             photoUrl={photo.previewUrl}
-                            photoType={slot.type}
+                            photoType={slotType}
                             assessment={ai.assessment}
                             onRetake={() =>
-                              handlePhotoRetake(activeIndex, slot.type)
+                              handlePhotoRetake(activeIndex, slotType)
                             }
                           />
                         )}
 
-                        {/* Photo taken but AI hasn't run yet — show thumbnail */}
+                        {/* Photo taken but AI hasn't run yet */}
                         {!ai && (
                           <div className="relative overflow-hidden rounded-xl border border-border">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={photo.previewUrl}
-                              alt={slot.label}
+                              alt={slotLabel}
                               className="h-36 w-full object-cover"
                             />
                           </div>
@@ -628,7 +697,7 @@ export default function VehiclesPage() {
             {avgScore !== null && (
               <div className="rounded-xl border border-border bg-muted px-4 py-3 flex items-center justify-between">
                 <span className="text-sm font-medium text-foreground">
-                  Overall Vehicle Condition Score
+                  {t("overallConditionScore")}
                 </span>
                 <span
                   className={`text-lg font-bold ${
@@ -654,14 +723,14 @@ export default function VehiclesPage() {
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[40px] border-2 border-primary text-sm font-semibold text-primary transition-all duration-200 hover:bg-[#EDEDFB] cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <PlusCircle className="size-4" />
-            Add Another Vehicle
+            {t("addAnotherVehicle")}
           </button>
 
           <Button
             onClick={handleContinue}
             className="h-14 w-full rounded-[40px] bg-primary text-base font-semibold text-primary-foreground transition-all duration-200 hover:bg-[#3D3CB8] cursor-pointer"
           >
-            Continue
+            {t("continue")}
             <ArrowRight className="ml-2 size-5" />
           </Button>
         </div>

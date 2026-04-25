@@ -12,17 +12,11 @@ import {
 } from "@/lib/vendor";
 import { MOCK_DRIVERS, MOCK_VEHICLES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n/context";
 
 const DEMO_VENDOR_ID = "vendor-001";
 
 type TabKey = "new" | "active" | "completed" | "all";
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "new", label: "New Requests" },
-  { key: "active", label: "Active" },
-  { key: "completed", label: "Completed" },
-  { key: "all", label: "All" },
-];
 
 const DECLINE_REASONS = [
   "No availability",
@@ -74,10 +68,26 @@ function AcceptDeclineCard({
   trip,
   onAccepted,
   onDeclined,
+  labels,
 }: {
   trip: Booking;
   onAccepted: (id: string) => void;
   onDeclined: (id: string) => void;
+  labels: {
+    assignDriver: string;
+    assignVehicle: string;
+    selectDriver: string;
+    selectVehicle: string;
+    acceptTrip: string;
+    accepting: string;
+    decline: string;
+    declineReason: string;
+    selectReason: string;
+    confirmDecline: string;
+    declining: string;
+    yourPayout: string;
+    cancel: string;
+  };
 }) {
   const [selectedDriver, setSelectedDriver] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState("");
@@ -133,7 +143,7 @@ function AcceptDeclineCard({
             ₹{formatCurrency(trip.total_fare)}
           </p>
           <p className="text-sm text-accent font-medium">
-            Your payout: ₹{formatCurrency(trip.vendor_payout)}
+            {labels.yourPayout}: ₹{formatCurrency(trip.vendor_payout)}
           </p>
         </div>
       </div>
@@ -143,7 +153,7 @@ function AcceptDeclineCard({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-muted-foreground">
-              Assign Driver
+              {labels.assignDriver}
             </label>
             <div className="relative">
               <select
@@ -151,7 +161,7 @@ function AcceptDeclineCard({
                 onChange={(e) => setSelectedDriver(e.target.value)}
                 className="w-full appearance-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/30 transition-all duration-200 cursor-pointer pr-8"
               >
-                <option value="">Select driver...</option>
+                <option value="">{labels.selectDriver}</option>
                 {activeDrivers.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -163,7 +173,7 @@ function AcceptDeclineCard({
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-muted-foreground">
-              Assign Vehicle
+              {labels.assignVehicle}
             </label>
             <div className="relative">
               <select
@@ -171,7 +181,7 @@ function AcceptDeclineCard({
                 onChange={(e) => setSelectedVehicle(e.target.value)}
                 className="w-full appearance-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/30 transition-all duration-200 cursor-pointer pr-8"
               >
-                <option value="">Select vehicle...</option>
+                <option value="">{labels.selectVehicle}</option>
                 {activeVehicles.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.registration_number} — {v.make} {v.model}
@@ -188,7 +198,7 @@ function AcceptDeclineCard({
       {declining && (
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">
-            Decline Reason
+            {labels.declineReason}
           </label>
           <div className="relative">
             <select
@@ -196,7 +206,7 @@ function AcceptDeclineCard({
               onChange={(e) => setDeclineReason(e.target.value)}
               className="w-full appearance-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/30 transition-all duration-200 cursor-pointer pr-8"
             >
-              <option value="">Select reason...</option>
+              <option value="">{labels.selectReason}</option>
               {DECLINE_REASONS.map((r) => (
                 <option key={r} value={r}>
                   {r}
@@ -218,7 +228,7 @@ function AcceptDeclineCard({
               className="flex-1 bg-primary text-primary-foreground hover:bg-[#3D3CB8] transition-all duration-200 cursor-pointer disabled:opacity-50"
               size="sm"
             >
-              {loading ? "Accepting..." : "Accept Trip"}
+              {loading ? labels.accepting : labels.acceptTrip}
             </Button>
             <Button
               onClick={() => setDeclining(true)}
@@ -226,7 +236,7 @@ function AcceptDeclineCard({
               size="sm"
               className="flex-1 border-destructive text-destructive hover:bg-red-50 transition-all duration-200 cursor-pointer"
             >
-              Decline
+              {labels.decline}
             </Button>
           </>
         ) : (
@@ -237,7 +247,7 @@ function AcceptDeclineCard({
               size="sm"
               className="flex-1 bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/30 transition-all duration-200 cursor-pointer disabled:opacity-50"
             >
-              {loading ? "Declining..." : "Confirm Decline"}
+              {loading ? labels.declining : labels.confirmDecline}
             </Button>
             <Button
               onClick={() => {
@@ -248,7 +258,7 @@ function AcceptDeclineCard({
               size="sm"
               className="cursor-pointer transition-all duration-200"
             >
-              Cancel
+              {labels.cancel}
             </Button>
           </>
         )}
@@ -257,7 +267,7 @@ function AcceptDeclineCard({
   );
 }
 
-function TripCard({ trip }: { trip: Booking }) {
+function TripCard({ trip, driverLabel, payoutLabel }: { trip: Booking; driverLabel: string; payoutLabel: string }) {
   return (
     <Link
       href={`/dashboard/trips/${trip.id}`}
@@ -276,7 +286,7 @@ function TripCard({ trip }: { trip: Booking }) {
           </p>
           {trip.assigned_driver_name && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              Driver: {trip.assigned_driver_name}
+              {driverLabel}: {trip.assigned_driver_name}
             </p>
           )}
         </div>
@@ -286,7 +296,7 @@ function TripCard({ trip }: { trip: Booking }) {
             ₹{formatCurrency(trip.total_fare)}
           </p>
           <p className="text-xs text-accent">
-            Payout: ₹{formatCurrency(trip.vendor_payout)}
+            {payoutLabel}: ₹{formatCurrency(trip.vendor_payout)}
           </p>
         </div>
       </div>
@@ -295,6 +305,7 @@ function TripCard({ trip }: { trip: Booking }) {
 }
 
 export default function TripsPage() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabKey>("new");
   const [allTrips, setAllTrips] = useState<Booking[]>([]);
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set());
@@ -302,6 +313,29 @@ export default function TripsPage() {
   useEffect(() => {
     getVendorTrips(DEMO_VENDOR_ID).then(setAllTrips);
   }, []);
+
+  const TABS: { key: TabKey; label: string }[] = [
+    { key: "new", label: t("newRequests") },
+    { key: "active", label: t("activeTrips") },
+    { key: "completed", label: t("completedTrips") },
+    { key: "all", label: t("allTrips") },
+  ];
+
+  const cardLabels = {
+    assignDriver: t("assignDriver"),
+    assignVehicle: t("assignVehicle"),
+    selectDriver: t("selectDriver"),
+    selectVehicle: t("selectVehicle"),
+    acceptTrip: t("acceptTrip"),
+    accepting: t("accepting"),
+    decline: t("decline"),
+    declineReason: t("declineReason"),
+    selectReason: t("selectReason"),
+    confirmDecline: t("confirmDecline"),
+    declining: t("declining"),
+    yourPayout: t("yourPayout"),
+    cancel: t("cancel"),
+  };
 
   function filterTrips(tab: TabKey): Booking[] {
     const remaining = allTrips.filter((t) => !handledIds.has(t.id));
@@ -331,7 +365,7 @@ export default function TripsPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-heading text-xl font-bold text-foreground">
-        Trip Management
+        {t("tripManagement")}
       </h1>
 
       {/* Tabs */}
@@ -362,7 +396,7 @@ export default function TripsPage() {
       <div className="flex flex-col gap-3">
         {visibleTrips.length === 0 && (
           <p className="text-sm text-muted-foreground py-12 text-center">
-            No trips in this category.
+            {t("noTripsInCategory")}
           </p>
         )}
 
@@ -373,10 +407,16 @@ export default function TripsPage() {
                 trip={trip}
                 onAccepted={handleAccepted}
                 onDeclined={handleDeclined}
+                labels={cardLabels}
               />
             ))
           : visibleTrips.map((trip) => (
-              <TripCard key={trip.id} trip={trip} />
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                driverLabel={t("driver")}
+                payoutLabel={t("yourPayout")}
+              />
             ))}
       </div>
     </div>

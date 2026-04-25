@@ -10,27 +10,34 @@ import {
   User,
 } from "lucide-react";
 import VendorHeader from "@/components/VendorHeader";
+import OfflineIndicator from "@/components/OfflineIndicator";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n/context";
 
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: Home },
-  { label: "Fleet", href: "/dashboard/fleet", icon: Car },
-  { label: "Trips", href: "/dashboard/trips", icon: ClipboardList },
-  { label: "Earnings", href: "/dashboard/earnings", icon: IndianRupee },
-  { label: "Profile", href: "/dashboard/profile", icon: User },
+type NavKey = "dashboard" | "fleet" | "trips" | "earnings" | "profile";
+
+const NAV_HREFS: { key: NavKey; href: string; icon: React.ElementType }[] = [
+  { key: "dashboard", href: "/dashboard", icon: Home },
+  { key: "fleet", href: "/dashboard/fleet", icon: Car },
+  { key: "trips", href: "/dashboard/trips", icon: ClipboardList },
+  { key: "earnings", href: "/dashboard/earnings", icon: IndianRupee },
+  { key: "profile", href: "/dashboard/profile", icon: User },
 ];
 
 function NavItem({
-  item,
+  href,
+  label,
+  icon: Icon,
   isActive,
 }: {
-  item: (typeof NAV_ITEMS)[number];
+  href: string;
+  label: string;
+  icon: React.ElementType;
   isActive: boolean;
 }) {
-  const Icon = item.icon;
   return (
     <Link
-      href={item.href}
+      href={href}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200 cursor-pointer",
         isActive
@@ -39,7 +46,7 @@ function NavItem({
       )}
     >
       <Icon className="size-4 shrink-0" />
-      <span className="hidden lg:block">{item.label}</span>
+      <span className="hidden lg:block">{label}</span>
     </Link>
   );
 }
@@ -50,6 +57,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const NAV_LABELS: Record<NavKey, string> = {
+    dashboard: t("dashboardNav"),
+    fleet: t("fleetManagement"),
+    trips: t("tripManagement"),
+    earnings: t("earnings"),
+    profile: t("profile"),
+  };
 
   function isActive(href: string): boolean {
     if (href === "/dashboard") {
@@ -61,15 +77,18 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-muted flex flex-col">
       <VendorHeader isLoggedIn userName="Rajesh Roy" />
+      <OfflineIndicator />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar — desktop only */}
         <aside className="hidden md:flex w-16 lg:w-60 shrink-0 flex-col border-r border-border bg-white">
           <nav className="flex flex-col gap-1 p-3 pt-4">
-            {NAV_ITEMS.map((item) => (
+            {NAV_HREFS.map((item) => (
               <NavItem
                 key={item.href}
-                item={item}
+                href={item.href}
+                label={NAV_LABELS[item.key]}
+                icon={item.icon}
                 isActive={isActive(item.href)}
               />
             ))}
@@ -84,7 +103,7 @@ export default function DashboardLayout({
 
       {/* Bottom nav — mobile only */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-white flex">
-        {NAV_ITEMS.map((item) => {
+        {NAV_HREFS.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           return (
@@ -99,7 +118,7 @@ export default function DashboardLayout({
               )}
             >
               <Icon className={cn("size-5", active && "text-primary")} />
-              {item.label}
+              {NAV_LABELS[item.key]}
             </Link>
           );
         })}
