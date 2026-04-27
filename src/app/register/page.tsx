@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProgressStepper from "@/components/ProgressStepper";
 import { useLanguage } from "@/lib/i18n/context";
+import { supabase } from "@/lib/supabase";
 
 type Stage = "phone" | "otp";
 
@@ -16,6 +17,7 @@ export default function RegisterPage() {
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [phoneError, setPhoneError] = useState("");
+  const [otpError, setOtpError] = useState("");
 
   const otpRefs = [
     useRef<HTMLInputElement>(null),
@@ -41,14 +43,16 @@ export default function RegisterPage() {
     if (phoneError) setPhoneError("");
   }
 
-  function handleSendOtp() {
+  async function handleSendOtp() {
     if (!validatePhone(phone)) return;
     setIsLoading(true);
-    // Placeholder: in production, call Supabase auth.signInWithOtp
-    setTimeout(() => {
-      setIsLoading(false);
+    const { error } = await supabase.auth.signInWithOtp({ phone: `+91${phone}` });
+    setIsLoading(false);
+    if (error) {
+      setPhoneError(error.message);
+    } else {
       setStage("otp");
-    }, 800);
+    }
   }
 
   function handleOtpChange(index: number, value: string) {
@@ -66,15 +70,22 @@ export default function RegisterPage() {
     }
   }
 
-  function handleVerifyOtp() {
+  async function handleVerifyOtp() {
     const code = otp.join("");
     if (code.length < 6) return;
     setIsLoading(true);
-    // Placeholder: in production, call Supabase auth.verifyOtp
-    setTimeout(() => {
-      setIsLoading(false);
+    setOtpError("");
+    const { error } = await supabase.auth.verifyOtp({
+      phone: `+91${phone}`,
+      token: code,
+      type: "sms",
+    });
+    setIsLoading(false);
+    if (error) {
+      setOtpError(error.message);
+    } else {
       window.location.href = "/register/profile";
-    }, 800);
+    }
   }
 
   const otpComplete = otp.every((d) => d !== "");
@@ -173,11 +184,16 @@ export default function RegisterPage() {
                 {!isLoading && <ArrowRight className="ml-2 size-5" />}
               </Button>
 
+              {otpError && (
+                <p className="text-sm text-destructive">{otpError}</p>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
                   setStage("phone");
                   setOtp(["", "", "", "", "", ""]);
+                  setOtpError("");
                 }}
                 className="text-sm text-muted-foreground underline-offset-4 hover:underline cursor-pointer transition-all duration-200"
               >
