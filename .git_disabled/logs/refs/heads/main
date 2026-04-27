@@ -1,0 +1,7 @@
+0000000000000000000000000000000000000000 542cef8d9aa1434c4311f18786d19f6da3050103 Sourabh Bhaumik <srksourabh@gmail.com> 1777038723 +0530	commit (initial): Initial commit from Create Next App
+542cef8d9aa1434c4311f18786d19f6da3050103 542cef8d9aa1434c4311f18786d19f6da3050103 Sourabh Bhaumik <srksourabh@gmail.com> 1777038994 +0530	Branch: renamed refs/heads/master to refs/heads/main
+542cef8d9aa1434c4311f18786d19f6da3050103 3aa78e4d5a064433a083a3865337e767c739d0d1 Sourabh Bhaumik <srksourabh@gmail.com> 1777045377 +0530	commit: feat: set up project with AaoCab brand, Supabase client, and shadcn/ui components
+3aa78e4d5a064433a083a3865337e767c739d0d1 0ab340fa1a2a91c23d7b17703ea957f745e2becf Sourabh Bhaumik <srksourabh@gmail.com> 1777047907 +0530	commit: feat: build complete vendor onboarding flow (Phase V1)
+0ab340fa1a2a91c23d7b17703ea957f745e2becf f57757bed28d86a29779243fbf99892ceabb1617 Sourabh Bhaumik <srksourabh@gmail.com> 1777049474 +0530	commit: feat: add AI document verification pipeline with real validation (Phase V2)
+f57757bed28d86a29779243fbf99892ceabb1617 d115007b6c88fdf9628c2fac00acb71f9027d2f1 Sourabh Bhaumik <srksourabh@gmail.com> 1777050931 +0530	commit: feat: build vendor dashboard with fleet, trips, earnings management (Phase V3)
+d115007b6c88fdf9628c2fac00acb71f9027d2f1 3853aac11c3f9fc4ee9dcf6119b873abb936adc2 Sourabh Bhaumik <srksourabh@gmail.com> 1777086183 +0530	commit: feat: complete Phase V4 — Hindi i18n, offline support, loading skeletons, error handling
